@@ -1,0 +1,19 @@
+server:
+  port: 8082  # Port for the auth service
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/authdb
+    username: dbuser
+    password: dbpassword
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update  # Automatically update the database schema
+    show-sql: true      # Show SQL queries in logs
+
+  security:
+    user:
+      name: admin
+      password: admin123
