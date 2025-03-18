@@ -1,5 +1,5 @@
 server:
-  port: 8082  # Port for the auth service
+  port: 8082
 
 spring:
   datasource:
@@ -7,12 +7,10 @@ spring:
     username: dbuser
     password: dbpassword
     driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
-      ddl-auto: update  # Automatically update the database schema
-    show-sql: true      # Show SQL queries in logs
-
+      ddl-auto: update
+    show-sql: true
   security:
     user:
       name: admin
