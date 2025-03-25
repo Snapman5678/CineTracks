@@ -24,4 +24,15 @@ public class UserService {
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
+
+    public boolean loginUser(String username, String rawpassword){
+        Optional<User>  userOptional = findByUsername(username);
+        if(userOptional.isPresent()){
+            User user= userOptional.get();
+            return passwordEncoder.matches(rawpassword, user.getPassword());
+        }
+        return false;
+
+    }
+
 }

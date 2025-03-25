@@ -30,4 +30,5 @@ class AuthServiceApplicationTests {
         User savedUser = userRepository.save(user);
         assertNotNull(savedUser.getId());
     }
+    
 }

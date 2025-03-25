@@ -1,8 +1,10 @@
 package com.example.auth.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @Configuration
-public class AppConfig {
-    // Add any additional configuration beans here
+@EnableConfigurationProperties(JwtProperties.class)
+public class AppConfig{
+    
 }

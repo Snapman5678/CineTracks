@@ -22,7 +22,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         ),
         @ComponentScan.Filter(
             type = FilterType.ASSIGNABLE_TYPE,
-            classes = com.example.auth.config.SecurityConfig.class
+            classes = com.example.auth.security.SecurityConfig.class
         )
     }
 )
