@@ -5,6 +5,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Entity
 @Table(name = "users")
@@ -18,7 +20,8 @@ public class User {
     
     private String password;
     
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private Role role;
     
     public User() {
     }
@@ -47,11 +50,11 @@ public class User {
         this.password = password;
     }
     
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
     
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 }

@@ -1,0 +1,104 @@
+# **Project Setup & API Documentation**  
+**JWT Authentication Service**  
+*(For Team Members)*  
+
+---
+
+## **⚙️ Environment Variables (Same level as frontend and backend)**  
+Create `.env` file:  
+```ini
+# PostgreSQL
+POSTGRES_USER=Aamir
+POSTGRES_PASSWORD=123456
+POSTGRES_DB=CineTracks
+POSTGRES_PORT=5433
+# JWT
+JWT_SECRET=YourVeryStrongSecretKeyWithAtLeast32CharactersLong12345
+``` 
+## **🚀 Quick Start (Docker Setup)**  
+Ensure Docker is installed, then run:  
+
+### **1. Start PostgreSQL & App**  
+```bash
+docker-compose up -d
+```  
+
+### **2. Stop Services**  
+```bash
+docker-compose down
+```  
+
+### **3. Access PostgreSQL use same credentials as env file**  
+```bash
+docker exec -it auth-postgres psql -U Aamir -d CineTracks
+```  
+
+### **4. Add springboot dashboard as extention in vscode and run auth service**  
+
+---
+
+## **🔐 API Routes**  
+**Base URL:** `http://localhost:8081/api/auth`  
+
+| **Endpoint**          | **Method** | **Body**                                | **Description**                     |
+|-----------------------|------------|----------------------------------------|-------------------------------------|
+| `/register`           | `POST`     | `{ "username": "test", "password": "123", "role": "USER" }` | Register new user. |
+| `/login`              | `POST`     | `{ "username": "test", "password": "123" }` | Get JWT token.     |
+| `/validate`           | `GET`      | *Header:* `Authorization: Bearer <token>` | Validate token.    |
+| `/admin-only`         | `GET`      | *Header:* `Authorization: Bearer <token>` | *(Requires `ADMIN` role)* |
+
+---
+
+## **📝 Example Requests**  
+
+### **1. Register a User**  
+```bash
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "secure123", "role": "USER"}'
+```  
+
+### **2. Login & Get Token**  
+```bash
+curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "secure123"}'
+```  
+**Response:**  
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9..."
+}
+```  
+
+### **3. Validate Token**  
+```bash
+curl -X GET http://localhost:8081/api/auth/validate \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+```  
+
+---
+ 
+---
+
+## **🔧 Troubleshooting**  
+1. **Token Errors?**  
+   - Ensure `JWT_SECRET` matches between runs.  
+   - Check expiration time (`JWT_EXPIRATION`).  
+
+2. **PostgreSQL Connection Issues?**  
+   - Verify credentials in `.env` match `docker-compose.yml`.  
+
+3. **Role-Based Access Failing?**  
+   - Use `"role": "ADMIN"` during registration for admin endpoints.  
+
+---
+
+## **📌 Notes for Teammates**  
+- Tokens **expire** (default: 3600000seconds).  
+- Always include `Authorization: Bearer <token>` for protected routes.  
+- **Never commit secrets** (`.env`, `JWT_SECRET`) to Git!  
+
+--- 
+
+✅ **Ready to go!** Deploy with confidence. 🚀

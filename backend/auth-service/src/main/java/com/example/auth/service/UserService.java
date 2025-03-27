@@ -2,6 +2,7 @@ package com.example.auth.service;
 
 import com.example.auth.model.User;
 import com.example.auth.repository.UserRepository;
+import com.example.auth.config.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,21 +18,21 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    public User registerUser(User user) {
-        try{
-        if(findByUsername(user.getUsername()).isPresent()){
-            throw new IllegalArgumentException("Username Already taken");
+    @Autowired
+    private JwtUtil jwtUtil;
 
-        }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
-
-        }
-        catch (DataIntegrityViolationException e){
-            throw new RuntimeException("Database exception:" + e.getMessage());
-        }
-        catch (Exception e){
-            throw new RuntimeException(" Registration failed:" + e.getMessage());
+    public String registerUser(User user) {
+        try {
+            if (findByUsername(user.getUsername()).isPresent()) {
+                throw new IllegalArgumentException("Username already taken");
+            }
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            User savedUser = userRepository.save(user);
+            return jwtUtil.generateToken(savedUser.getUsername());
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Database exception: " + e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException("Registration failed: " + e.getMessage());
         }
     }
 
@@ -39,19 +40,20 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
-    public boolean loginUser(String username, String rawpassword){
-        Optional<User>  userOptional = findByUsername(username);
-        if(userOptional.isPresent()){
-            User user= userOptional.get();
-            return passwordEncoder.matches(rawpassword, user.getPassword());
+    public String loginUser(String username, String rawPassword) {
+        Optional<User> userOptional = findByUsername(username);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            if (passwordEncoder.matches(rawPassword, user.getPassword())) {
+                return jwtUtil.generateToken(user.getUsername());
+            }
         }
-        return false;
-
+        throw new RuntimeException("Invalid username or password");
     }
 
-    public boolean updateUser(Long id, User user) {
+    public boolean updateUser(String username, User user) {
         try {
-            Optional<User> userOptional = userRepository.findById(id);
+            Optional<User> userOptional = findByUsername(username);
             if (userOptional.isPresent()) {
                 User existingUser = userOptional.get();
                 existingUser.setUsername(user.getUsername());

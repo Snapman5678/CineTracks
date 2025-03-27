@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.auth.model.Role;
 import com.example.auth.model.User;
 import com.example.auth.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class AuthServiceApplicationTests {
         User user = new User();
         user.setUsername("testuser");
         user.setPassword("testpassword");
-        user.setRole("ROLE_USER");
+        user.setRole(Role.USER);
 
         User savedUser = userRepository.save(user);
         assertNotNull(savedUser.getId());
@@ -44,7 +45,7 @@ class AuthServiceApplicationTests {
         User user = new User();
         user.setUsername("testuser");
         user.setPassword("testpassword");
-        user.setRole("ROLE_USER");
+        user.setRole(Role.USER);
 
         ResponseEntity<User> response = restTemplate.postForEntity("/api/auth/register", user, User.class);
 
