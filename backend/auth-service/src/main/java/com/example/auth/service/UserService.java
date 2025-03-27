@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Service
@@ -51,23 +52,29 @@ public class UserService {
         throw new RuntimeException("Invalid username or password");
     }
 
-    public boolean updateUser(String username, User user) {
+    @Transactional  
+    public String updateUser(String username, User user) {
         try {
-            Optional<User> userOptional = findByUsername(username);
-            if (userOptional.isPresent()) {
-                User existingUser = userOptional.get();
-                existingUser.setUsername(user.getUsername());
-                existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
-                userRepository.save(existingUser);
-                return true;
-            } else {
-                return false;
-            }
+            User existingUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            
+            existingUser.setUsername(user.getUsername());
+            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+            userRepository.save(existingUser); 
+            
+            return jwtUtil.generateToken(existingUser.getUsername()); 
+            
         } catch (DataIntegrityViolationException e) {
-            throw new RuntimeException("Database exception: " + e.getMessage());
-        } catch (Exception e) {
-            throw new RuntimeException("Update failed: " + e.getMessage());
+            throw new RuntimeException("Username already exists: " + e.getMessage());
         }
+    }
+
+    @Transactional
+    public boolean deleteUser(String username) {
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        userRepository.delete(user);
+        return true;
     }
 
 }
