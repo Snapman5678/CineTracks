@@ -30,7 +30,7 @@ docker-compose down
 
 ### **3. Access PostgreSQL use same credentials as env file**  
 ```bash
-docker exec -it auth-postgres psql -U Aamir -d CineTracks
+docker exec -it db psql -U Aamir -d CineTracks
 ```  
 
 ### **4. Add springboot dashboard as extention in vscode and run auth service**  
