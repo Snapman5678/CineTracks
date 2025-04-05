@@ -1,5 +1,4 @@
 spring:
-
   config:
     import : optional:file:.env[.properties]
     
@@ -11,7 +10,6 @@ spring:
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -28,4 +26,8 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
+
+tmdb:
+  api-key: ${TMDB_API_KEY}
+  base-url: https://api.themoviedb.org/3
 
