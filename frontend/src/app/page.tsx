@@ -61,7 +61,7 @@ export default function Home() {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <div className="absolute inset-0 z-0 bg-[url('/hero-background.jpg')] bg-cover bg-center opacity-30" />
+        <div className="absolute inset-0 z-0 bg-[url('/hero-background.svg')] bg-cover bg-center opacity-30" />
         
         <div className="container mx-auto px-6 z-10">
           <motion.div

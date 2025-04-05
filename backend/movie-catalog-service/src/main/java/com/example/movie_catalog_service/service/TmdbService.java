@@ -9,6 +9,7 @@ import com.example.movie_catalog_service.config.TmdbProperties;
 import com.example.movie_catalog_service.model.Movie;
 import com.example.movie_catalog_service.model.MovieResponse;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,19 +24,23 @@ public class TmdbService {
     
     public List<Movie> getPopularMovies(int page) {
         String url = UriComponentsBuilder
-            .fromHttpUrl(tmdbProperties.getBaseUrl() + "/movie/popular")
+            .fromUriString(tmdbProperties.getBaseUrl() + "/movie/popular")
             .queryParam("api_key", tmdbProperties.getApiKey())
             .queryParam("page", page)
             .build()
             .toUriString();
             
-        MovieResponse response = restTemplate.getForObject(url, MovieResponse.class);
-        return response.getResults();
+        try {
+            MovieResponse response = restTemplate.getForObject(url, MovieResponse.class);
+            return response != null ? response.getResults() : Collections.emptyList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
     
     public Optional<Movie> getMovieDetails(Long movieId) {
         String url = UriComponentsBuilder
-            .fromHttpUrl(tmdbProperties.getBaseUrl() + "/movie/" + movieId)
+            .fromUriString(tmdbProperties.getBaseUrl() + "/movie/" + movieId)
             .queryParam("api_key", tmdbProperties.getApiKey())
             .build()
             .toUriString();
@@ -50,14 +55,18 @@ public class TmdbService {
     
     public List<Movie> searchMovies(String query, int page) {
         String url = UriComponentsBuilder
-            .fromHttpUrl(tmdbProperties.getBaseUrl() + "/search/movie")
+            .fromUriString(tmdbProperties.getBaseUrl() + "/search/movie")
             .queryParam("api_key", tmdbProperties.getApiKey())
             .queryParam("query", query)
             .queryParam("page", page)
             .build()
             .toUriString();
             
-        MovieResponse response = restTemplate.getForObject(url, MovieResponse.class);
-        return response.getResults();
+        try {
+            MovieResponse response = restTemplate.getForObject(url, MovieResponse.class);
+            return response != null ? response.getResults() : Collections.emptyList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 }

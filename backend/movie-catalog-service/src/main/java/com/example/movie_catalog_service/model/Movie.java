@@ -12,6 +12,9 @@ public class Movie {
     @JsonProperty("poster_path")
     private String posterPath;
     
+    @JsonProperty("backdrop_path")
+    private String backdropPath;
+    
     @JsonProperty("release_date")
     private String releaseDate;
     
@@ -52,6 +55,14 @@ public class Movie {
     
     public void setPosterPath(String posterPath) {
         this.posterPath = posterPath;
+    }
+    
+    public String getBackdropPath() {
+        return backdropPath;
+    }
+    
+    public void setBackdropPath(String backdropPath) {
+        this.backdropPath = backdropPath;
     }
     
     public String getReleaseDate() {
