@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUser, FaStar, FaCalendarAlt } from 'react-icons/fa';
+import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUser, FaStar, FaCalendarAlt, FaCog, FaUserCircle } from 'react-icons/fa';
 
 export default function Dashboard() {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, isGuest } = useAuth();
   const router = useRouter();
   const [activeSidebar, setActiveSidebar] = useState(true);
   const [activeTab, setActiveTab] = useState('watchlist');
@@ -46,28 +45,31 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Sidebar */}
-      <motion.div
+      {/* Sidebar - removed initial animation for better loading */}
+      <div
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out dark:bg-gray-800 ${
           activeSidebar ? 'translate-x-0' : '-translate-x-full'
         } md:relative md:translate-x-0`}
-        initial={{ x: -300 }}
-        animate={{ x: 0 }}
-        transition={{ type: 'spring', stiffness: 100 }}
       >
         <div className="flex flex-col h-full">
           {/* Sidebar header */}
           <div className="p-4 border-b dark:border-gray-700">
             <div className="flex items-center space-x-2">
-              <motion.div
+              <div
                 className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900"
-                whileHover={{ scale: 1.05 }}
               >
                 <FaUser className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-              </motion.div>
+              </div>
               <div>
                 <h2 className="font-semibold dark:text-white">{user.username}</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{user.role}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {isGuest ? 'Guest User' : user.role}
+                  {isGuest && (
+                    <Link href="/register" className="ml-2 text-indigo-500 hover:text-indigo-600">
+                      Create Account
+                    </Link>
+                  )}
+                </p>
               </div>
             </div>
           </div>
@@ -75,7 +77,7 @@ export default function Dashboard() {
           {/* Navigation links */}
           <nav className="flex-grow p-4 space-y-1 overflow-y-auto">
             {sidebarItems.map((item) => (
-              <motion.button
+              <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${
@@ -83,13 +85,21 @@ export default function Dashboard() {
                     ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                 }`}
-                whileHover={{ x: 5 }}
-                whileTap={{ scale: 0.95 }}
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.label}</span>
-              </motion.button>
+              </button>
             ))}
+            
+            <Link href="/dashboard/profile" passHref>
+              <div
+                className="flex items-center space-x-3 w-full p-3 rounded-lg transition-colors 
+                text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer mt-4"
+              >
+                <FaCog className="h-5 w-5" />
+                <span>Account Settings</span>
+              </div>
+            </Link>
           </nav>
 
           {/* Sidebar footer */}
@@ -103,7 +113,7 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -149,39 +159,46 @@ export default function Dashboard() {
                   />
                 </svg>
               </button>
-              <button className="hidden md:block p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg
-                  className="h-6 w-6 text-gray-600 dark:text-gray-300"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </button>
+              <Link href="/dashboard/profile" className="block">
+                <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <FaUserCircle className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                </button>
+              </Link>
+              {isGuest && (
+                <Link href="/register" className="hidden md:block">
+                  <button className="ml-3 px-4 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium transition-colors">
+                    Create Account
+                  </button>
+                </Link>
+              )}
             </div>
           </div>
         </header>
 
         {/* Dashboard content */}
         <main className="flex-1 bg-gray-100 dark:bg-gray-900 p-6 overflow-y-auto">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
+          <div 
             className="max-w-7xl mx-auto"
           >
+            {/* Display guest banner if user is guest */}
+            {isGuest && (
+              <div 
+                className="mb-6 p-4 bg-indigo-100 dark:bg-indigo-900/30 border-l-4 border-indigo-500 text-indigo-700 dark:text-indigo-300 rounded-md"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between">
+                  <div className="mb-3 md:mb-0">
+                    <h3 className="font-medium">You're browsing as a guest</h3>
+                    <p className="text-sm text-indigo-600 dark:text-indigo-400">Create an account to save your data and access all features</p>
+                  </div>
+                  <Link href="/register">
+                    <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium transition-colors">
+                      Create Account
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* Placeholder content based on the active tab */}
             {activeTab === 'watchlist' && (
               <div className="space-y-6">
@@ -190,10 +207,9 @@ export default function Dashboard() {
                 {/* Categories */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {['Currently Watching', 'Plan to Watch', 'Completed'].map((category) => (
-                    <motion.div
+                    <div
                       key={category}
-                      className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
-                      whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
+                      className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
                     >
                       <div className="p-5 border-b border-gray-200 dark:border-gray-700">
                         <h3 className="font-semibold text-lg text-gray-800 dark:text-white">{category}</h3>
@@ -214,7 +230,7 @@ export default function Dashboard() {
                           </button>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
                 
@@ -251,7 +267,7 @@ export default function Dashboard() {
                 </button>
               </div>
             )}
-          </motion.div>
+          </div>
         </main>
       </div>
     </div>

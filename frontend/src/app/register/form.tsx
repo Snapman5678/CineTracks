@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { FaUser, FaLock, FaUserTag, FaUserPlus } from 'react-icons/fa';
+import { FaUser, FaLock, FaUserPlus, FaEnvelope } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterForm() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('USER');
   const [validationError, setValidationError] = useState('');
   const { register, error, isLoading, clearError } = useAuth();
 
@@ -23,7 +23,7 @@ export default function RegisterForm() {
     e.preventDefault();
     
     // Form validation
-    if (!username || !password || !confirmPassword) {
+    if (!username || !email || !password || !confirmPassword) {
       setValidationError('Please fill in all fields');
       return;
     }
@@ -33,8 +33,16 @@ export default function RegisterForm() {
       return;
     }
     
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setValidationError('Please enter a valid email address');
+      return;
+    }
+    
     setValidationError('');
-    await register(username, password, role);
+    // Always register as USER role - removed role selection from UI
+    await register(username, email, password, 'USER');
   };
 
   const formVariants = {
@@ -83,8 +91,30 @@ export default function RegisterForm() {
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 font-medium"
             placeholder="Choose a username"
+          />
+        </div>
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <div className="mt-1 relative rounded-md shadow-sm">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <FaEnvelope className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 font-medium"
+            placeholder="Enter your email"
           />
         </div>
       </motion.div>
@@ -105,7 +135,7 @@ export default function RegisterForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 font-medium"
             placeholder="Create a password"
           />
         </div>
@@ -127,36 +157,10 @@ export default function RegisterForm() {
             required
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 font-medium"
             placeholder="Confirm your password"
           />
         </div>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-          Account Role
-        </label>
-        <div className="mt-1 relative rounded-md shadow-sm">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FaUserTag className="h-5 w-5 text-gray-400" />
-          </div>
-          <select
-            id="role"
-            name="role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="pl-10 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="USER">User</option>
-            <option value="GUEST">Guest</option>
-            {/* Hide admin option from regular registration */}
-            {/* <option value="ADMIN">Admin</option> */}
-          </select>
-        </div>
-        <p className="mt-1 text-xs text-gray-500">
-          User: Full access to all features | Guest: Limited access to basic features
-        </p>
       </motion.div>
 
       {displayError && (

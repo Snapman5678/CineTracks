@@ -3,9 +3,22 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { FaFilm, FaTv, FaListAlt, FaUserCircle } from 'react-icons/fa';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
+  const router = useRouter();
+  const { user, isLoading, isGuest } = useAuth();
+
+  useEffect(() => {
+    // If user is logged in (not as guest), redirect to dashboard
+    if (!isLoading && user && !isGuest) {
+      router.push('/dashboard');
+    }
+  }, [isLoading, user, isGuest, router]);
+
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -75,12 +88,21 @@ export default function Home() {
               className="flex flex-col md:flex-row gap-4"
               variants={itemVariants}
             >
-              <Link href="/register" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
-                <span>Get Started</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </Link>
+              {isGuest ? (
+                <Link href="/dashboard" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                  <span>Continue as Guest</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </Link>
+              ) : (
+                <Link href="/register" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                  <span>Get Started</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </Link>
+              )}
               <Link href="/login" className="bg-transparent border-2 border-white hover:bg-white hover:text-indigo-900 text-white font-bold py-3 px-8 rounded-full transition-all duration-300">
                 Sign In
               </Link>
@@ -176,8 +198,8 @@ export default function Home() {
           transition={{ duration: 1 }}
         >
           <h2 className="text-4xl font-bold mb-8">Ready to start tracking?</h2>
-          <Link href="/register" className="bg-white text-indigo-900 hover:bg-gray-100 font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 transform hover:scale-105">
-            Create Your Account
+          <Link href={isGuest ? "/dashboard" : "/register"} className="bg-white text-indigo-900 hover:bg-gray-100 font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 transform hover:scale-105">
+            {isGuest ? "Continue to Dashboard" : "Create Your Account"}
           </Link>
         </motion.div>
       </section>
