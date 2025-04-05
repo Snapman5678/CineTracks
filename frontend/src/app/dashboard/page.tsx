@@ -4,13 +4,18 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUser, FaStar, FaCalendarAlt, FaCog, FaUserCircle } from 'react-icons/fa';
+import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUser, FaStar, FaCalendarAlt, FaCog, FaUserCircle, FaPlay } from 'react-icons/fa';
 
 export default function Dashboard() {
   const { user, logout, isLoading, isGuest } = useAuth();
   const router = useRouter();
   const [activeSidebar, setActiveSidebar] = useState(true);
   const [activeTab, setActiveTab] = useState('watchlist');
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  const toggleProfileMenu = () => {
+    setShowProfileMenu(!showProfileMenu);
+  };
 
   // Protect this page - redirect if not authenticated
   useEffect(() => {
@@ -32,6 +37,7 @@ export default function Dashboard() {
   }
 
   const sidebarItems = [
+    { id: 'home', label: 'Home', icon: FaPlay, href: '/home' },
     { id: 'watchlist', label: 'Watchlist', icon: FaList },
     { id: 'movies', label: 'Movies', icon: FaFilm },
     { id: 'tv', label: 'TV Shows', icon: FaTv },
@@ -76,7 +82,17 @@ export default function Dashboard() {
 
           {/* Navigation links */}
           <nav className="flex-grow p-4 space-y-1 overflow-y-auto">
-            {sidebarItems.map((item) => (
+            {/* Home link - special case that navigates to /home */}
+            <Link href="/home" className="w-full">
+              <div className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors
+                text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700`}>
+                <FaPlay className="h-5 w-5" />
+                <span>Home</span>
+              </div>
+            </Link>
+            
+            {/* Regular dashboard tabs */}
+            {sidebarItems.slice(1).map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
@@ -139,9 +155,11 @@ export default function Dashboard() {
                   />
                 </svg>
               </button>
-              <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-                <span className="text-indigo-600 dark:text-indigo-400">Cine</span>Tracks
-              </h1>
+              <Link href="/home">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-white cursor-pointer">
+                  <span className="text-indigo-600 dark:text-indigo-400">Cine</span>Tracks
+                </h1>
+              </Link>
             </div>
             <div className="flex items-center space-x-2">
               <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -159,11 +177,43 @@ export default function Dashboard() {
                   />
                 </svg>
               </button>
-              <Link href="/dashboard/profile" className="block">
-                <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <div className="relative">
+                <button 
+                  onClick={toggleProfileMenu}
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
                   <FaUserCircle className="h-6 w-6 text-gray-600 dark:text-gray-300" />
                 </button>
-              </Link>
+                
+                {/* Profile dropdown menu */}
+                {showProfileMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border dark:border-gray-700">
+                    <div className="px-4 py-2 border-b dark:border-gray-700">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-white">{user.username}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{user.email || 'Guest User'}</p>
+                    </div>
+                    <Link href="/home">
+                      <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
+                        <FaPlay className="mr-2 h-4 w-4" />
+                        Home
+                      </div>
+                    </Link>
+                    <Link href="/dashboard/profile">
+                      <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
+                        <FaCog className="mr-2 h-4 w-4" />
+                        Account Settings
+                      </div>
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center"
+                    >
+                      <FaSignOutAlt className="mr-2 h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
               {isGuest && (
                 <Link href="/register" className="hidden md:block">
                   <button className="ml-3 px-4 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium transition-colors">

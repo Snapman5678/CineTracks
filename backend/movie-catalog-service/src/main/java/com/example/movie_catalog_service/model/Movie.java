@@ -24,6 +24,9 @@ public class Movie {
     @JsonProperty("genre_ids")
     private List<Integer> genreIds;
     
+    // Added for trailer functionality
+    private String trailerUrl;
+    
     // Getters and setters
     public Long getId() {
         return id;
@@ -87,5 +90,13 @@ public class Movie {
     
     public void setGenreIds(List<Integer> genreIds) {
         this.genreIds = genreIds;
+    }
+    
+    public String getTrailerUrl() {
+        return trailerUrl;
+    }
+    
+    public void setTrailerUrl(String trailerUrl) {
+        this.trailerUrl = trailerUrl;
     }
 }

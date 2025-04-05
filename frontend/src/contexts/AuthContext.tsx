@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch current user details using an existing token
   const fetchCurrentUser = async (authToken: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/user`, {
+      const response = await fetch(`/api/auth/user`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/login`, {
+      const response = await fetch(`/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -161,8 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: data.user?.role || 'USER'
       });
       
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to home page instead of dashboard
+      router.push('/home');
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/register`, {
+      const response = await fetch(`/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -210,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/guest`, {
+      const response = await fetch(`/api/auth/guest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -262,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/upgrade-guest`, {
+      const response = await fetch(`/api/auth/upgrade-guest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -288,8 +288,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setIsGuest(false);
       
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to home page instead of dashboard
+      router.push('/home');
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -312,7 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/update-profile`, {
+      const response = await fetch(`/api/auth/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -356,7 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/change-password`, {
+      const response = await fetch(`/api/auth/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -393,7 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/request-password-reset`, {
+      const response = await fetch(`/api/auth/request-password-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -424,7 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/reset-password`, {
+      const response = await fetch(`/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -460,7 +460,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/delete-account`, {
+      const response = await fetch(`/api/auth/delete-account`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

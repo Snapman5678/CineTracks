@@ -1,6 +1,16 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Update image configuration to use remotePatterns instead of domains
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'image.tmdb.org',
+        pathname: '/**',
+      },
+    ],
+  },
   // Rewrites to proxy API requests to the backend services
   async rewrites() {
     return [
