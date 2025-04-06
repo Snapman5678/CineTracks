@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.movie_catalog_service.model.DetailedMovie;
 import com.example.movie_catalog_service.model.Movie;
 import com.example.movie_catalog_service.service.TmdbService;
 
@@ -25,7 +26,8 @@ public class MovieController {
     
     @GetMapping("/{id}")
     public ResponseEntity<?> getMovieById(@PathVariable Long id) {
-        return tmdbService.getMovieDetails(id)
+        // Use the enhanced method to get detailed movie information
+        return tmdbService.getDetailedMovieInfo(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

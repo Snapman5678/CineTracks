@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaArrowLeft, FaPlay, FaStar, FaCalendarAlt, FaClock, FaGlobe, FaMoneyBillWave, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaCircle, FaUserCircle, FaSearch } from 'react-icons/fa';
+import { FaArrowLeft, FaPlay, FaStar, FaCalendarAlt, FaClock, FaGlobe, FaMoneyBillWave, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaCircle, FaUserCircle, FaSearch, FaLanguage, FaMapMarkerAlt, FaFilm, FaChevronRight, FaChevronLeft } from 'react-icons/fa';
 
 // Extended Movie interface with additional details
 interface DetailedMovie {
@@ -19,10 +19,15 @@ interface DetailedMovie {
   vote_count: number;
   popularity: number;
   runtime?: number;
-  budget?: number;
-  revenue?: number;
+  budget?: number | null;
+  revenue?: number | null;
   genres?: { id: number; name: string }[];
-  production_companies?: { id: number; name: string; logo_path?: string }[];
+  production_companies?: { 
+    id: number; 
+    name: string; 
+    logo_path?: string | null;
+    origin_country?: string;
+  }[];
   production_countries?: { iso_3166_1: string; name: string }[];
   spoken_languages?: { english_name: string; iso_639_1: string; name: string }[];
   homepage?: string;
@@ -35,12 +40,14 @@ interface DetailedMovie {
       name: string;
       character: string;
       profile_path: string | null;
+      imdbId?: string;
     }[];
     crew: {
       id: number;
       name: string;
       job: string;
       profile_path: string | null;
+      imdbId?: string;
     }[];
   };
   similar?: {
@@ -50,6 +57,12 @@ interface DetailedMovie {
       poster_path: string | null;
       vote_average: number;
     }[];
+  };
+  belongs_to_collection?: {
+    id: number;
+    name: string;
+    poster_path: string | null;
+    backdrop_path: string | null;
   };
 }
 
@@ -61,6 +74,7 @@ interface MoviePageProps {
 }
 
 export default function MovieDetails({ params }: MoviePageProps) {
+  // Access the ID from params properly for Next.js App Router
   const movieId = params.id;
 
   const { user, logout, isLoading, isGuest } = useAuth();
@@ -72,6 +86,7 @@ export default function MovieDetails({ params }: MoviePageProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // For mobile view tabs
 
   // Toggle profile menu dropdown
   const toggleProfileMenu = () => {
@@ -88,9 +103,11 @@ export default function MovieDetails({ params }: MoviePageProps) {
   // Fetch detailed movie info
   useEffect(() => {
     const fetchMovieDetails = async () => {
+      if (!movieId) return;
+      
       try {
         setIsLoadingMovie(true);
-        // Get basic movie details
+        // Get detailed movie info from our enhanced endpoint
         const response = await fetch(`/api/movie-catalog/movies/${movieId}`);
         if (!response.ok) {
           throw new Error('Movie not found');
@@ -151,8 +168,8 @@ export default function MovieDetails({ params }: MoviePageProps) {
   };
 
   // Helper function for number formatting
-  const formatCurrency = (amount?: number) => {
-    if (!amount) return 'N/A';
+  const formatCurrency = (amount?: number | null) => {
+    if (!amount || amount === 0) return 'N/A';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -207,6 +224,16 @@ export default function MovieDetails({ params }: MoviePageProps) {
       </div>
     );
   }
+
+  // Extract directing, producing, writing credits for easy display
+  const director = movie.credits?.crew?.find(person => person.job === 'Director');
+  const producer = movie.credits?.crew?.find(person => person.job === 'Producer');
+  const writer = movie.credits?.crew?.find(person => 
+    person.job === 'Screenplay' || person.job === 'Writer' || person.job === 'Story'
+  );
+  const cinematographer = movie.credits?.crew?.find(person => 
+    person.job === 'Director of Photography' || person.job === 'Cinematography'
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -371,7 +398,7 @@ export default function MovieDetails({ params }: MoviePageProps) {
                 {movie.vote_average && (
                   <div className="flex items-center">
                     <FaStar className="mr-1 h-4 w-4 text-yellow-500" />
-                    {movie.vote_average.toFixed(1)}/10 ({movie.vote_count} votes)
+                    {movie.vote_average.toFixed(1)}/10 {movie.vote_count && `(${movie.vote_count.toLocaleString()} votes)`}
                   </div>
                 )}
 
@@ -422,55 +449,595 @@ export default function MovieDetails({ params }: MoviePageProps) {
         </div>
       </div>
 
+      {/* Mobile tabs for navigation */}
+      <div className="md:hidden bg-white dark:bg-gray-800 sticky top-0 z-40 border-b dark:border-gray-700">
+        <div className="flex overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 flex-1 ${
+              activeTab === 'overview'
+                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                : 'border-transparent text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('cast')}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 flex-1 ${
+              activeTab === 'cast'
+                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                : 'border-transparent text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            Cast & Crew
+          </button>
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 flex-1 ${
+              activeTab === 'details'
+                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                : 'border-transparent text-gray-600 dark:text-gray-300'
+            }`}
+          >
+            Details
+          </button>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8 md:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Left Column - Overview and Details */}
-          <div className="md:col-span-2 space-y-8">
-            {/* Overview */}
-            <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-              <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Overview</h2>
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                {showFullOverview || movie.overview.length <= 400 
-                  ? movie.overview 
-                  : `${movie.overview.substring(0, 400)}...`}
-                {movie.overview.length > 400 && (
-                  <button
-                    onClick={() => setShowFullOverview(!showFullOverview)}
-                    className="ml-2 text-indigo-600 dark:text-indigo-400 font-medium hover:underline focus:outline-none"
-                  >
-                    {showFullOverview ? 'Read Less' : 'Read More'}
-                  </button>
-                )}
-              </p>
-            </section>
-
-            {/* Cast Section */}
-            {movie.credits?.cast && movie.credits.cast.length > 0 && (
+          <div className={`md:col-span-2 space-y-8 ${activeTab !== 'overview' && activeTab !== 'cast' ? 'hidden md:block' : ''}`}>
+            {/* Overview - Show on mobile only when activeTab is 'overview' */}
+            {(activeTab === 'overview' || !activeTab) && (
               <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Top Cast</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {movie.credits.cast.slice(0, 8).map((person) => (
-                    <div key={person.id} className="flex flex-col items-center text-center">
-                      <div className="h-24 w-24 rounded-full overflow-hidden mb-2">
-                        {person.profile_path ? (
-                          <Image
-                            src={getProfileImageUrl(person.profile_path)}
-                            alt={person.name}
-                            width={96}
-                            height={96}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                            <span className="text-gray-400 text-xs">No Photo</span>
+                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Overview</h2>
+                <div className="prose prose-lg max-w-none dark:prose-invert">
+                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {showFullOverview || movie.overview.length <= 400 
+                      ? movie.overview 
+                      : `${movie.overview.substring(0, 400)}...`}
+                    {movie.overview.length > 400 && (
+                      <button
+                        onClick={() => setShowFullOverview(!showFullOverview)}
+                        className="ml-2 text-indigo-600 dark:text-indigo-400 font-medium hover:underline focus:outline-none"
+                      >
+                        {showFullOverview ? 'Read Less' : 'Read More'}
+                      </button>
+                    )}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {/* Cast Section - Show on mobile only when activeTab is 'cast' */}
+            {(activeTab === 'cast' || activeTab === 'overview' || !activeTab) && (
+              <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Cast</h2>
+                
+                {/* Cast members */}
+                {movie.credits && movie.credits.cast && movie.credits.cast.length > 0 ? (
+                  <div className="mb-8">                    
+                    {/* Top cast with images */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                      {movie.credits.cast.slice(0, 10).map((person) => (
+                        <div key={person.id} className="flex flex-col items-center text-center">
+                          {person.imdbId ? (
+                            <a 
+                              href={`https://www.imdb.com/name/${person.imdbId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group"
+                              aria-label={`View ${person.name} on IMDb`}
+                            >
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700 relative group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                                {person.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(person.profile_path)}
+                                    alt={person.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">{person.name}</p>
+                              <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-2">{person.character}</p>
+                            </a>
+                          ) : (
+                            <>
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700 relative">
+                                {person.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(person.profile_path)}
+                                    alt={person.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm">{person.name}</p>
+                              <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-2">{person.character}</p>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Extended cast list - Horizontally scrollable */}
+                    {movie.credits.cast.length > 10 && (
+                      <div className="mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-lg font-medium text-gray-700 dark:text-gray-200">Additional Cast</h4>
+                          <div className="flex space-x-2">
+                            <button 
+                              className="p-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                              onClick={() => {
+                                document.getElementById('cast-scroll-container')?.scrollBy({ left: -300, behavior: 'smooth' });
+                              }}
+                            >
+                              <FaChevronLeft className="h-4 w-4" />
+                            </button>
+                            <button 
+                              className="p-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                              onClick={() => {
+                                document.getElementById('cast-scroll-container')?.scrollBy({ left: 300, behavior: 'smooth' });
+                              }}
+                            >
+                              <FaChevronRight className="h-4 w-4" />
+                            </button>
                           </div>
+                        </div>
+                        <div className="relative">
+                          <div id="cast-scroll-container" className="flex overflow-x-auto pb-3 snap-x scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            {movie.credits.cast.slice(10, 30).map((person) => (
+                              <div key={person.id} className="flex-none w-48 mr-4 snap-start">
+                                {person.imdbId ? (
+                                  <a 
+                                    href={`https://www.imdb.com/name/${person.imdbId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label={`View ${person.name} on IMDb`}
+                                  >
+                                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-100 dark:bg-gray-700 h-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                      <div className="h-14 w-14 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
+                                        {person.profile_path ? (
+                                          <Image
+                                            src={getProfileImageUrl(person.profile_path)}
+                                            alt={person.name}
+                                            width={56}
+                                            height={56}
+                                            className="h-full w-full object-cover"
+                                          />
+                                        ) : (
+                                          <div className="h-full w-full flex items-center justify-center">
+                                            <FaUserCircle className="h-6 w-6 text-gray-400" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-gray-800 dark:text-white text-sm">{person.name}</p>
+                                        <p className="text-gray-500 dark:text-gray-300 text-xs">{person.character}</p>
+                                      </div>
+                                    </div>
+                                  </a>
+                                ) : (
+                                  <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-100 dark:bg-gray-700 h-full">
+                                    <div className="h-14 w-14 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
+                                      {person.profile_path ? (
+                                        <Image
+                                          src={getProfileImageUrl(person.profile_path)}
+                                          alt={person.name}
+                                          width={56}
+                                          height={56}
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="h-full w-full flex items-center justify-center">
+                                          <FaUserCircle className="h-6 w-6 text-gray-400" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-gray-800 dark:text-white text-sm">{person.name}</p>
+                                      <p className="text-gray-500 dark:text-gray-300 text-xs">{person.character}</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {movie.credits.cast.length > 30 && (
+                          <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 text-right">
+                            +{movie.credits.cast.length - 30} more cast members
+                          </p>
                         )}
                       </div>
-                      <p className="font-medium text-gray-800 dark:text-white text-sm">{person.name}</p>
-                      <p className="text-gray-500 dark:text-gray-400 text-xs">{person.character}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-center">
+                    <p className="text-gray-600 dark:text-gray-300">No cast information available</p>
+                  </div>
+                )}
+                
+                {/* Crew Section */}
+                {movie.credits && movie.credits.crew && movie.credits.crew.length > 0 ? (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Crew</h3>
+                    
+                    {/* Key crew members with photos */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                      {/* Director */}
+                      {director && (
+                        <div className="flex flex-col items-center text-center p-3">
+                          {director.imdbId ? (
+                            <a 
+                              href={`https://www.imdb.com/name/${director.imdbId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex flex-col items-center"
+                              aria-label={`View ${director.name} on IMDb`}
+                            >
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700 group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                                {director.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(director.profile_path)}
+                                    alt={director.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">{director.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Director</p>
+                            </a>
+                          ) : (
+                            <>
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700">
+                                {director.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(director.profile_path)}
+                                    alt={director.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm">{director.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Director</p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Producer */}
+                      {producer && (
+                        <div className="flex flex-col items-center text-center p-3">
+                          {producer.imdbId ? (
+                            <a 
+                              href={`https://www.imdb.com/name/${producer.imdbId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex flex-col items-center"
+                              aria-label={`View ${producer.name} on IMDb`}
+                            >
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700 group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                                {producer.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(producer.profile_path)}
+                                    alt={producer.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">{producer.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Producer</p>
+                            </a>
+                          ) : (
+                            <>
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700">
+                                {producer.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(producer.profile_path)}
+                                    alt={producer.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm">{producer.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Producer</p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Writer */}
+                      {writer && (
+                        <div className="flex flex-col items-center text-center p-3">
+                          {writer.imdbId ? (
+                            <a 
+                              href={`https://www.imdb.com/name/${writer.imdbId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex flex-col items-center"
+                              aria-label={`View ${writer.name} on IMDb`}
+                            >
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700 group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                                {writer.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(writer.profile_path)}
+                                    alt={writer.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">{writer.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Writer</p>
+                            </a>
+                          ) : (
+                            <>
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700">
+                                {writer.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(writer.profile_path)}
+                                    alt={writer.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm">{writer.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Writer</p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Cinematographer */}
+                      {cinematographer && (
+                        <div className="flex flex-col items-center text-center p-3">
+                          {cinematographer.imdbId ? (
+                            <a 
+                              href={`https://www.imdb.com/name/${cinematographer.imdbId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex flex-col items-center"
+                              aria-label={`View ${cinematographer.name} on IMDb`}
+                            >
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700 group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                                {cinematographer.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(cinematographer.profile_path)}
+                                    alt={cinematographer.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">{cinematographer.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Cinematographer</p>
+                            </a>
+                          ) : (
+                            <>
+                              <div className="h-32 w-32 rounded-full overflow-hidden mb-3 bg-gray-200 dark:bg-gray-700">
+                                {cinematographer.profile_path ? (
+                                  <Image
+                                    src={getProfileImageUrl(cinematographer.profile_path)}
+                                    alt={cinematographer.name}
+                                    width={128}
+                                    height={128}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <FaUserCircle className="h-16 w-16 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="font-medium text-gray-800 dark:text-white text-sm">{cinematographer.name}</p>
+                              <p className="text-indigo-600 dark:text-indigo-400 text-xs font-medium">Cinematographer</p>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    
+                    {/* Other crew members by department - Horizontally scrollable */}
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-lg font-medium text-gray-700 dark:text-gray-200">Other Crew</h4>
+                        <div className="flex space-x-2">
+                          <button 
+                            className="p-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                            onClick={() => {
+                              document.getElementById('crew-scroll-container')?.scrollBy({ left: -300, behavior: 'smooth' });
+                            }}
+                          >
+                            <FaChevronLeft className="h-4 w-4" />
+                          </button>
+                          <button 
+                            className="p-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                            onClick={() => {
+                              document.getElementById('crew-scroll-container')?.scrollBy({ left: 300, behavior: 'smooth' });
+                            }}
+                          >
+                            <FaChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="relative">
+                        <div id="crew-scroll-container" className="flex overflow-x-auto pb-3 snap-x scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                          {(() => {
+                            const departments: { [key: string]: typeof movie.credits.crew } = {};
+                            movie.credits?.crew?.forEach(person => {
+                              if (!departments[person.job]) {
+                                departments[person.job] = [];
+                              }
+                              departments[person.job].push(person);
+                            });
+                            
+                            // Return departments with their crew members
+                            return (
+                              Object.entries(departments)
+                                .filter(([job]) => 
+                                  job !== 'Director' && 
+                                  job !== 'Producer' && 
+                                  job !== 'Writer' && 
+                                  job !== 'Screenplay' && 
+                                  job !== 'Story' &&
+                                  job !== 'Director of Photography' && 
+                                  job !== 'Cinematography'
+                                )
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .slice(0, 10)
+                                .map(([job, people]) => (
+                                  <div key={job} className="flex-none w-72 mr-4 snap-start">
+                                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 h-full">
+                                      <h4 className="text-base font-medium mb-3 text-gray-700 dark:text-gray-200">{job}</h4>
+                                      <div className="space-y-2">
+                                        {people.slice(0, 3).map(person => (
+                                          <div key={`${job}-${person.id}`} className="flex items-center space-x-3">
+                                            {person.imdbId ? (
+                                              <a 
+                                                href={`https://www.imdb.com/name/${person.imdbId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center space-x-3 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                                                aria-label={`View ${person.name} on IMDb`}
+                                              >
+                                                <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600">
+                                                  {person.profile_path ? (
+                                                    <Image
+                                                      src={getProfileImageUrl(person.profile_path)}
+                                                      alt={person.name}
+                                                      width={40}
+                                                      height={40}
+                                                      className="h-full w-full object-cover"
+                                                    />
+                                                  ) : (
+                                                    <div className="h-full w-full flex items-center justify-center">
+                                                      <FaUserCircle className="h-5 w-5 text-gray-400" />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <p className="font-medium text-gray-800 dark:text-white text-sm">{person.name}</p>
+                                              </a>
+                                            ) : (
+                                              <>
+                                                <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600">
+                                                  {person.profile_path ? (
+                                                    <Image
+                                                      src={getProfileImageUrl(person.profile_path)}
+                                                      alt={person.name}
+                                                      width={40}
+                                                      height={40}
+                                                      className="h-full w-full object-cover"
+                                                    />
+                                                  ) : (
+                                                    <div className="h-full w-full flex items-center justify-center">
+                                                      <FaUserCircle className="h-5 w-5 text-gray-400" />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <p className="font-medium text-gray-800 dark:text-white text-sm">{person.name}</p>
+                                              </>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-center">
+                    <p className="text-gray-600 dark:text-gray-300">No crew information available</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Collection Section - if movie belongs to a collection */}
+            {movie.belongs_to_collection && (
+              <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Part of {movie.belongs_to_collection.name}</h2>
+                <div className="relative aspect-[21/9] w-full rounded-lg overflow-hidden">
+                  {movie.belongs_to_collection.backdrop_path ? (
+                    <Image
+                      src={getMovieBackdropUrl(movie.belongs_to_collection.backdrop_path)}
+                      alt={movie.belongs_to_collection.name}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                      <FaFilm className="h-16 w-16 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent flex items-end p-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">{movie.belongs_to_collection.name}</h3>
+                      <button className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium">
+                        View Collection
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
             )}
@@ -478,7 +1045,9 @@ export default function MovieDetails({ params }: MoviePageProps) {
             {/* Similar Movies */}
             {movie.similar?.results && movie.similar.results.length > 0 && (
               <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Similar Movies</h2>
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Similar Movies</h2>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {movie.similar.results.slice(0, 4).map((similarMovie) => (
                     <Link key={similarMovie.id} href={`/movie/${similarMovie.id}`}>
@@ -514,7 +1083,7 @@ export default function MovieDetails({ params }: MoviePageProps) {
           </div>
 
           {/* Right Column - Movie Info */}
-          <div className="space-y-6">
+          <div className={`space-y-6 ${activeTab !== 'details' ? 'hidden md:block' : ''}`}>
             {/* Movie Poster (Mobile Only) */}
             <div className="md:hidden relative aspect-[2/3] max-w-xs mx-auto rounded-lg overflow-hidden shadow-lg">
               {movie.poster_path ? (
@@ -570,9 +1139,18 @@ export default function MovieDetails({ params }: MoviePageProps) {
                   </div>
                 )}
 
+                {movie.popularity !== undefined && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Popularity</h3>
+                    <p className="text-gray-800 dark:text-white">{movie.popularity.toFixed(1)}</p>
+                  </div>
+                )}
+
                 {movie.spoken_languages && movie.spoken_languages.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Languages</h3>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center">
+                      <FaLanguage className="mr-1" /> Languages
+                    </h3>
                     <p className="text-gray-800 dark:text-white">
                       {movie.spoken_languages.map(lang => lang.english_name).join(', ')}
                     </p>
@@ -581,7 +1159,9 @@ export default function MovieDetails({ params }: MoviePageProps) {
 
                 {movie.production_countries && movie.production_countries.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Production Countries</h3>
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center">
+                      <FaMapMarkerAlt className="mr-1" /> Production Countries
+                    </h3>
                     <p className="text-gray-800 dark:text-white">
                       {movie.production_countries.map(country => country.name).join(', ')}
                     </p>
@@ -619,42 +1199,88 @@ export default function MovieDetails({ params }: MoviePageProps) {
               </div>
             </section>
 
-            {/* Crew Section */}
-            {movie.credits?.crew && movie.credits.crew.length > 0 && (
+            {/* Stats & Metrics */}
+            <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
+              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Stats & Metrics</h2>
+              
+              <div className="space-y-4">
+                {/* Visual rating */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">User Rating</h3>
+                  <div className="mt-2 flex items-center">
+                    <div className="relative h-2 w-full bg-gray-300 dark:bg-gray-600 rounded-full overflow-hidden">
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-yellow-500" 
+                        style={{ width: `${(movie.vote_average || 0) * 10}%` }}
+                      ></div>
+                    </div>
+                    <span className="ml-2 font-bold text-yellow-500">{movie.vote_average?.toFixed(1)}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{movie.vote_count?.toLocaleString()} votes</p>
+                </div>
+
+                {/* Budget vs Revenue comparison if both exist */}
+                {movie.budget && movie.revenue && movie.budget > 0 && movie.revenue > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget vs Revenue</h3>
+                    <div className="mt-2 grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500">Budget</p>
+                        <p className="text-gray-800 dark:text-white font-semibold">{formatCurrency(movie.budget)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Revenue</p>
+                        <p className={`font-semibold ${
+                          movie.revenue > movie.budget ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {formatCurrency(movie.revenue)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {movie.revenue > movie.budget
+                          ? `Profit: ${formatCurrency(movie.revenue - movie.budget)} (+${((movie.revenue / movie.budget - 1) * 100).toFixed(0)}%)`
+                          : `Loss: ${formatCurrency(movie.budget - movie.revenue)} (-${((1 - movie.revenue / movie.budget) * 100).toFixed(0)}%)`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Production Companies with Logos */}
+            {movie.production_companies && movie.production_companies.some(company => company.logo_path) && (
               <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md">
-                <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Key Crew</h2>
-                <div className="space-y-3">
-                  {/* Filter for director */}
-                  {movie.credits.crew.filter(p => p.job === 'Director').slice(0, 1).map(person => (
-                    <div key={`${person.id}-${person.job}`}>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Director</h3>
-                      <p className="text-gray-800 dark:text-white">{person.name}</p>
-                    </div>
-                  ))}
-
-                  {/* Filter for producers */}
-                  {movie.credits.crew.filter(p => p.job === 'Producer').slice(0, 1).map(person => (
-                    <div key={`${person.id}-${person.job}`}>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Producer</h3>
-                      <p className="text-gray-800 dark:text-white">{person.name}</p>
-                    </div>
-                  ))}
-
-                  {/* Filter for screenplay */}
-                  {movie.credits.crew.filter(p => p.job === 'Screenplay').slice(0, 1).map(person => (
-                    <div key={`${person.id}-${person.job}`}>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Screenplay</h3>
-                      <p className="text-gray-800 dark:text-white">{person.name}</p>
-                    </div>
-                  ))}
-
-                  {/* Filter for cinematography */}
-                  {movie.credits.crew.filter(p => p.job === 'Director of Photography').slice(0, 1).map(person => (
-                    <div key={`${person.id}-${person.job}`}>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Cinematography</h3>
-                      <p className="text-gray-800 dark:text-white">{person.name}</p>
-                    </div>
-                  ))}
+                <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Production Companies</h2>
+                <div className="space-y-4">
+                  {movie.production_companies
+                    .filter(company => company.logo_path)
+                    .slice(0, 4)
+                    .map(company => (
+                      <div key={company.id} className="flex items-center space-x-3">
+                        <div className="w-16 h-12 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center p-1">
+                          {company.logo_path ? (
+                            <Image
+                              src={`https://image.tmdb.org/t/p/w200${company.logo_path}`}
+                              alt={company.name}
+                              width={60}
+                              height={40}
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400">No logo</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-gray-800 dark:text-white text-sm font-medium">{company.name}</p>
+                          {company.origin_country && (
+                            <p className="text-gray-500 dark:text-gray-400 text-xs">{company.origin_country}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </section>
             )}
