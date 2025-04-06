@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -87,11 +87,35 @@ export default function MovieDetails({ params }: MoviePageProps) {
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // For mobile view tabs
+  
+  // Refs for dropdown menu functionality
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
 
   // Toggle profile menu dropdown
   const toggleProfileMenu = () => {
     setShowProfileMenu(!showProfileMenu);
   };
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showProfileMenu &&
+        profileMenuRef.current &&
+        profileButtonRef.current &&
+        !profileMenuRef.current.contains(event.target as Node) &&
+        !profileButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
 
   // Protect this page - redirect if not authenticated
   useEffect(() => {
@@ -239,15 +263,49 @@ export default function MovieDetails({ params }: MoviePageProps) {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       {/* Header/Navigation Bar */}
       <header className="bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <div className="px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+        <div className="px-6 py-4 flex items-center justify-between">
+          {/* Logo - Made bigger and positioned at top left */}
+          <div className="relative">
             <Link href="/home">
-              <h1 className="text-xl font-semibold text-gray-800 dark:text-white cursor-pointer">
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-white cursor-pointer">
                 <span className="text-indigo-600 dark:text-indigo-400">Cine</span>Tracks
               </h1>
             </Link>
+            
+            {/* Profile dropdown menu positioned below the logo */}
+            {showProfileMenu && (
+              <div
+                ref={profileMenuRef}
+                className="absolute left-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border dark:border-gray-700"
+              >
+                <div className="px-4 py-2 border-b dark:border-gray-700">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-white">{user?.username || 'Guest'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email || 'Guest User'}</p>
+                </div>
+                <Link href="/dashboard">
+                  <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
+                    <FaBookmark className="mr-2 h-4 w-4" />
+                    My Watchlist
+                  </div>
+                </Link>
+                <Link href="/dashboard/profile">
+                  <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
+                    <FaCircle className="mr-2 h-4 w-4" />
+                    Account Settings
+                  </div>
+                </Link>
+                <button
+                  onClick={logout}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center"
+                >
+                  <FaArrowLeft className="mr-2 h-4 w-4" />
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-2">
+          
+          <div className="flex items-center space-x-4">
             <div className="relative hidden md:block">
               <input
                 type="text"
@@ -271,42 +329,19 @@ export default function MovieDetails({ params }: MoviePageProps) {
                 />
               </svg>
             </button>
-            <div className="relative">
+            
+            {/* Username display and profile menu */}
+            <div className="relative flex items-center space-x-3">
+              <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {user?.username}
+              </span>
               <button
+                ref={profileButtonRef}
                 onClick={toggleProfileMenu}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <FaUserCircle className="h-6 w-6 text-gray-600 dark:text-gray-300" />
               </button>
-
-              {/* Profile dropdown menu */}
-              {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border dark:border-gray-700">
-                  <div className="px-4 py-2 border-b dark:border-gray-700">
-                    <p className="text-sm font-semibold text-gray-800 dark:text-white">{user?.username || 'Guest'}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email || 'Guest User'}</p>
-                  </div>
-                  <Link href="/dashboard">
-                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
-                      <FaBookmark className="mr-2 h-4 w-4" />
-                      My Watchlist
-                    </div>
-                  </Link>
-                  <Link href="/dashboard/profile">
-                    <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
-                      <FaCircle className="mr-2 h-4 w-4" />
-                      Account Settings
-                    </div>
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center"
-                  >
-                    <FaArrowLeft className="mr-2 h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              )}
             </div>
             {isGuest && (
               <Link href="/register" className="hidden md:block">
