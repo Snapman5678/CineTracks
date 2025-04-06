@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUserCircle, FaSearch, FaPlay, FaChevronRight, FaChevronLeft, FaPlus, FaCalendarAlt, FaCog, FaStar } from 'react-icons/fa';
+import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUserCircle, FaSearch, FaPlay, FaChevronRight, FaChevronLeft, FaPlus, FaCalendarAlt, FaCog, FaStar, FaCheckCircle, FaRegClock, FaRegEye } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 // Define Movie interface based on the API response
@@ -22,15 +22,28 @@ interface Movie {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  
   const { user, logout, isLoading, isGuest } = useAuth();
   const router = useRouter();
   const [activeSidebar, setActiveSidebar] = useState(true);
+  const [activeTab, setActiveTab] = useState('home');
   const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
   const [showTrailer, setShowTrailer] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
+
+  // Set active tab based on URL param
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab('home');
+    }
+  }, [tabParam]);
 
   // Ref for the dropdown menu and button
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -157,11 +170,11 @@ export default function Home() {
 
   const sidebarItems = [
     { id: 'home', label: 'Home', icon: FaPlay, href: '/home' },
-    { id: 'watchlist', label: 'Watchlist', icon: FaList, href: '/dashboard' },
-    { id: 'movies', label: 'Movies', icon: FaFilm, href: '/dashboard?tab=movies' },
-    { id: 'tv', label: 'TV Shows', icon: FaTv, href: '/dashboard?tab=tv' },
-    { id: 'ratings', label: 'My Ratings', icon: FaStar, href: '/dashboard?tab=ratings' },
-    { id: 'calendar', label: 'Calendar', icon: FaCalendarAlt, href: '/dashboard?tab=calendar' },
+    { id: 'watchlist', label: 'Watchlist', icon: FaList, href: '/home?tab=watchlist' },
+    { id: 'movies', label: 'Movies', icon: FaFilm, href: '/home?tab=movies' },
+    { id: 'tv', label: 'TV Shows', icon: FaTv, href: '/home?tab=tv' },
+    { id: 'ratings', label: 'My Ratings', icon: FaStar, href: '/home?tab=ratings' },
+    { id: 'calendar', label: 'Calendar', icon: FaCalendarAlt, href: '/home?tab=calendar' },
   ];
 
   const toggleSidebar = () => {
@@ -260,13 +273,13 @@ export default function Home() {
                     <p className="text-sm font-semibold text-gray-800 dark:text-white">{user.username}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{user.email || 'Guest User'}</p>
                   </div>
-                  <Link href="/dashboard">
+                  <Link href="/home?tab=watchlist">
                     <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
                       <FaList className="mr-2 h-4 w-4" />
                       My Watchlist
                     </div>
                   </Link>
-                  <Link href="/dashboard/profile">
+                  <Link href="/home/profile">
                     <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
                       <FaCog className="mr-2 h-4 w-4" />
                       Account Settings
@@ -309,7 +322,7 @@ export default function Home() {
                   key={item.id}
                   href={item.href}
                   className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${
-                    item.id === 'home'
+                    item.id === activeTab
                       ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
                       : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
@@ -318,6 +331,16 @@ export default function Home() {
                   <span>{item.label}</span>
                 </Link>
               ))}
+              
+              <Link href="/home/profile" passHref>
+                <div
+                  className="flex items-center space-x-3 w-full p-3 rounded-lg transition-colors 
+                  text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 cursor-pointer mt-4"
+                >
+                  <FaCog className="h-5 w-5" />
+                  <span>Account Settings</span>
+                </div>
+              </Link>
             </nav>
           </div>
         </div>
@@ -343,336 +366,474 @@ export default function Home() {
               </div>
             )}
 
-            {/* Featured Movie Section with Arrows */}
-            <div className="relative w-full h-[70vh] overflow-hidden">
-              {/* Left navigation arrow */}
-              <button 
-                onClick={prevMovie}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 p-3 rounded-full backdrop-blur-sm text-white hover:bg-black/50 transition-colors"
-              >
-                <FaChevronLeft className="h-6 w-6" />
-              </button>
-
-              {/* Right navigation arrow */}
-              <button
-                onClick={nextMovie}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 p-3 rounded-full backdrop-blur-sm text-white hover:bg-black/50 transition-colors"
-              >
-                <FaChevronRight className="h-6 w-6" />
-              </button>
-
-              {popularMovies.map((movie, index) => (
-                <motion.div
-                  key={movie.id}
-                  className="absolute inset-0"
-                  initial={{ opacity: 0 }}
-                  animate={{
-                    opacity: currentFeaturedIndex === index ? 1 : 0,
-                    scale: currentFeaturedIndex === index ? 1 : 1.05,
-                  }}
-                  transition={{
-                    opacity: { duration: 1, ease: 'easeInOut' },
-                    scale: { duration: 1.2, ease: 'easeInOut' },
-                  }}
-                  style={{
-                    zIndex: currentFeaturedIndex === index ? 1 : 0,
-                  }}
-                >
-                  <div className="absolute inset-0">
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent z-10"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/50 to-transparent z-10"></div>
-                    {movie.backdrop_path && (
-                      <Image
-                        src={getMovieBackdropUrl(movie.backdrop_path)}
-                        alt={movie.title}
-                        fill
-                        className="object-cover object-center"
-                        priority
-                        key={movie.id}
-                      />
-                    )}
-                  </div>
-                  <div className="relative z-20 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-16">
-                    <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">{movie.title}</h1>
-                    <p className="text-lg text-gray-300 max-w-2xl mb-6">
-                      {movie.overview.length > 200 ? `${movie.overview.substring(0, 200)}...` : movie.overview}
-                    </p>
-                    <div className="flex flex-wrap gap-3 mb-8">
-                      <span className="px-3 py-1 bg-indigo-600/90 text-white text-sm rounded-full">
-                        Rating: {movie.vote_average.toFixed(1)}/10
-                      </span>
-                      <span className="px-3 py-1 bg-gray-600/90 text-white text-sm rounded-full">
-                        {new Date(movie.release_date).getFullYear()}
-                      </span>
-                    </div>
-                    <div className="flex gap-4 flex-wrap">
-                      <button
-                        onClick={openTrailer}
-                        disabled={!movie.trailerUrl}
-                        className={`px-6 py-3 rounded-md flex items-center gap-2 transition-colors ${
-                          movie.trailerUrl
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                            : 'bg-gray-400 text-white cursor-not-allowed'
-                        }`}
-                      >
-                        <FaPlay className="h-4 w-4" />
-                        <span>{movie.trailerUrl ? 'Watch Trailer' : 'No Trailer Available'}</span>
-                      </button>
-                      <Link href={`/movie/${movie.id}`}>
-                        <button className="px-6 py-3 bg-gray-700/70 text-white rounded-md hover:bg-gray-600 transition-colors">
-                          View Details
-                        </button>
-                      </Link>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-
-              {/* Progress indicators for featured movies */}
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
-                {popularMovies.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                      currentFeaturedIndex === index ? 'w-8 bg-white' : 'w-2 bg-white/50'
-                    }`}
-                    onClick={() => setCurrentFeaturedIndex(index)}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Trailer Modal with Blurred Background */}
-            {showTrailer && popularMovies[currentFeaturedIndex]?.trailerUrl && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
-                {/* Blurred background instead of black */}
-                <div className="absolute inset-0 backdrop-blur-md bg-black/40" onClick={closeTrailer}></div>
-                <div className="relative w-full max-w-5xl z-10">
-                  <button
-                    onClick={closeTrailer}
-                    className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2"
-                    aria-label="Close trailer"
+            {/* Dashboard Content or Home Content based on active tab */}
+            {activeTab === 'home' && (
+              <>
+                {/* Featured Movie Section with Arrows */}
+                <div className="relative w-full h-[70vh] overflow-hidden">
+                  {/* Left navigation arrow */}
+                  <button 
+                    onClick={prevMovie}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 p-3 rounded-full backdrop-blur-sm text-white hover:bg-black/50 transition-colors"
                   >
-                    <svg
-                      className="w-8 h-8"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <FaChevronLeft className="h-6 w-6" />
                   </button>
-                  {/* Improved aspect ratio container with proper sizing */}
-                  <div className="relative pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-2xl">
-                    <iframe
-                      src={getYoutubeEmbedUrl(popularMovies[currentFeaturedIndex].trailerUrl)}
-                      title={`${popularMovies[currentFeaturedIndex].title} Trailer`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-full border-0"
-                    ></iframe>
+                  
+                  {/* Right navigation arrow */}
+                  <button
+                    onClick={nextMovie}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 p-3 rounded-full backdrop-blur-sm text-white hover:bg-black/50 transition-colors"
+                  >
+                    <FaChevronRight className="h-6 w-6" />
+                  </button>
+
+                  {popularMovies.map((movie, index) => (
+                    <motion.div
+                      key={movie.id}
+                      className="absolute inset-0"
+                      initial={{ opacity: 0 }}
+                      animate={{
+                        opacity: currentFeaturedIndex === index ? 1 : 0,
+                        scale: currentFeaturedIndex === index ? 1 : 1.05,
+                      }}
+                      transition={{
+                        opacity: { duration: 1, ease: 'easeInOut' },
+                        scale: { duration: 1.2, ease: 'easeInOut' },
+                      }}
+                      style={{
+                        zIndex: currentFeaturedIndex === index ? 1 : 0,
+                      }}
+                    >
+                      <div className="absolute inset-0">
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent z-10"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/50 to-transparent z-10"></div>
+                        {movie.backdrop_path && (
+                          <Image
+                            src={getMovieBackdropUrl(movie.backdrop_path)}
+                            alt={movie.title}
+                            fill
+                            className="object-cover object-center"
+                            priority
+                            key={movie.id}
+                          />
+                        )}
+                      </div>
+                      <div className="relative z-20 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-16">
+                        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">{movie.title}</h1>
+                        <p className="text-lg text-gray-300 max-w-2xl mb-6">
+                          {movie.overview.length > 200 ? `${movie.overview.substring(0, 200)}...` : movie.overview}
+                        </p>
+                        <div className="flex flex-wrap gap-3 mb-8">
+                          <span className="px-3 py-1 bg-indigo-600/90 text-white text-sm rounded-full">
+                            Rating: {movie.vote_average.toFixed(1)}/10
+                          </span>
+                          <span className="px-3 py-1 bg-gray-600/90 text-white text-sm rounded-full">
+                            {new Date(movie.release_date).getFullYear()}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 flex-wrap">
+                          <button
+                            onClick={openTrailer}
+                            disabled={!movie.trailerUrl}
+                            className={`px-6 py-3 rounded-md flex items-center gap-2 transition-colors ${
+                              movie.trailerUrl
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-gray-400 text-white cursor-not-allowed'
+                            }`}
+                          >
+                            <FaPlay className="h-4 w-4" />
+                            <span>{movie.trailerUrl ? 'Watch Trailer' : 'No Trailer Available'}</span>
+                          </button>
+                          <Link href={`/movie/${movie.id}`}>
+                            <button className="px-6 py-3 bg-gray-700/70 text-white rounded-md hover:bg-gray-600 transition-colors">
+                              View Details
+                            </button>
+                          </Link>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {/* Progress indicators for featured movies */}
+                  <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
+                    {popularMovies.map((_, index) => (
+                      <button
+                        key={index}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          currentFeaturedIndex === index ? 'w-8 bg-white' : 'w-2 bg-white/50'
+                        }`}
+                        onClick={() => setCurrentFeaturedIndex(index)}
+                        aria-label={`Go to slide ${index + 1}`}
+                      />
+                    ))}
                   </div>
-                  <div className="mt-4 text-center text-white">
-                    <h3 className="text-xl font-bold">{popularMovies[currentFeaturedIndex].title} - Official Trailer</h3>
+                </div>
+
+                <div className="max-w-7xl mx-auto px-6 py-8">
+                  {/* Popular Movies Section */}
+                  <section className="mb-12">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Popular Movies</h2>
+
+                    {isLoadingMovies ? (
+                      <div className="flex items-center justify-center py-20">
+                        <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        {popularMovies.slice(1, 11).map((movie) => (
+                          <div
+                            key={movie.id}
+                            className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300 relative group"
+                          >
+                            <Link href={`/movie/${movie.id}`} className="block">
+                              <div className="relative aspect-[2/3] w-full">
+                                {movie.poster_path ? (
+                                  <Image
+                                    src={getMoviePosterUrl(movie.poster_path)}
+                                    alt={movie.title}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                    <FaFilm className="h-16 w-16 text-gray-400 dark:text-gray-500" />
+                                  </div>
+                                )}
+                                <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                  {movie.vote_average.toFixed(1)}
+                                </div>
+                              </div>
+                            </Link>
+
+                            {/* Add to watchlist button (icon only) */}
+                            <button 
+                              className="absolute bottom-20 right-3 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                // Add to watchlist functionality
+                              }}
+                            >
+                              <FaPlus className="h-4 w-4" />
+                            </button>
+
+                            {/* Separate trailer button to avoid conflicts with poster click */}
+                            {movie.trailerUrl && (
+                              <button
+                                className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setCurrentFeaturedIndex(popularMovies.indexOf(movie));
+                                  setShowTrailer(true);
+                                }}
+                              >
+                                <FaPlay className="h-4 w-4" />
+                              </button>
+                            )}
+                            
+                            <Link href={`/movie/${movie.id}`}>
+                              <div className="p-4">
+                                <h3 className="font-bold text-gray-800 dark:text-white mb-1 line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{movie.title}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {new Date(movie.release_date).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                  })}
+                                </p>
+                              </div>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Coming Soon Section */}
+                  {!isLoadingMovies && (
+                    <section className="mb-12">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Coming Soon</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {popularMovies.slice(11, 14).map((movie) => (
+                          <Link key={movie.id} href={`/movie/${movie.id}`}>
+                            <div className="flex bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                              <div className="relative w-1/3">
+                                {movie.poster_path ? (
+                                  <Image
+                                    src={getMoviePosterUrl(movie.poster_path)}
+                                    alt={movie.title}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                    <FaFilm className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-4 w-2/3">
+                                <h3 className="font-bold text-gray-800 dark:text-white mb-1">{movie.title}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                  Release:{' '}
+                                  {new Date(movie.release_date).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}
+                                </p>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">{movie.overview}</p>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Recommended for You */}
+                  {!isLoadingMovies && (
+                    <section>
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Recommended for You</h2>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {popularMovies.slice(14, 18).map((movie) => (
+                          <Link key={movie.id} href={`/movie/${movie.id}`}>
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                              <div className="relative aspect-[16/9] w-full">
+                                {movie.backdrop_path ? (
+                                  <Image
+                                    src={getMovieBackdropUrl(movie.backdrop_path)}
+                                    alt={movie.title}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                    <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                                  <h3 className="text-white font-bold p-4">{movie.title}</h3>
+                                </div>
+                                <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                  {movie.vote_average.toFixed(1)}
+                                </div>
+                                {/* Play trailer button */}
+                                {movie.trailerUrl && (
+                                  <div
+                                    className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setCurrentFeaturedIndex(popularMovies.indexOf(movie));
+                                      setShowTrailer(true);
+                                    }}
+                                  >
+                                    <div className="bg-indigo-600/80 p-3 rounded-full hover:bg-indigo-600 transition-colors">
+                                      <FaPlay className="text-white h-5 w-5" />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="p-4">
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{movie.overview}</p>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                    <FaCalendarAlt className="mr-1 h-3 w-3" />
+                                    {new Date(movie.release_date).getFullYear()}
+                                  </span>
+                                  <button 
+                                    className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      // Add to watchlist functionality
+                                    }}
+                                  >
+                                    <FaPlus className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Watchlist Tab Content */}
+            {activeTab === 'watchlist' && (
+              <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="space-y-6">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Watchlist</h2>
+
+                  {/* Categories */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {['Currently Watching', 'Plan to Watch', 'Completed'].map((category) => (
+                      <div
+                        key={category}
+                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                      >
+                        <div className="p-5 border-b border-gray-200 dark:border-gray-700">
+                          <h3 className="font-semibold text-lg text-gray-800 dark:text-white">{category}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {category === 'Currently Watching'
+                              ? 'Continue where you left off'
+                              : category === 'Plan to Watch'
+                              ? 'Your future entertainment'
+                              : 'Everything you have watched'}
+                          </p>
+                        </div>
+                        <div className="p-5">
+                          {/* Placeholder for empty state */}
+                          <div className="py-8 flex flex-col items-center text-center">
+                            <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-4">
+                              {category === 'Currently Watching' && <FaRegEye className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
+                              {category === 'Plan to Watch' && <FaRegClock className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
+                              {category === 'Completed' && <FaCheckCircle className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
+                            </div>
+                            <p className="text-gray-600 dark:text-gray-300">No items in this category yet</p>
+                            <button className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                              Add content
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recent activity - placeholder */}
+                  <div className="mt-8">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Recent Activity</h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Your recent activity will appear here as you use CineTracks. Start by adding movies and shows to your
+                      watchlist!
+                    </p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="max-w-7xl mx-auto px-6 py-8">
-              {/* Popular Movies Section */}
-              <section className="mb-12">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Popular Movies</h2>
-
-                {isLoadingMovies ? (
-                  <div className="flex items-center justify-center py-20">
-                    <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
+            {/* Movies Tab Content */}
+            {activeTab === 'movies' && (
+              <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-6">
+                    <FaFilm className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {popularMovies.slice(1, 11).map((movie) => (
-                      <div
-                        key={movie.id}
-                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300 relative group"
-                      >
-                        <Link href={`/movie/${movie.id}`} className="block">
-                          <div className="relative aspect-[2/3] w-full">
-                            {movie.poster_path ? (
-                              <Image
-                                src={getMoviePosterUrl(movie.poster_path)}
-                                alt={movie.title}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                <FaFilm className="h-16 w-16 text-gray-400 dark:text-gray-500" />
-                              </div>
-                            )}
-                            <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
-                              {movie.vote_average.toFixed(1)}
-                            </div>
-                          </div>
-                        </Link>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                    Movie Collection
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-lg">
+                    This is a placeholder for the movie collection feature. More functionality will be added in future updates.
+                  </p>
+                  <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    Add Movies
+                  </button>
+                </div>
+              </div>
+            )}
 
-                        {/* Add to watchlist button (icon only) */}
-                        <button 
-                          className="absolute bottom-20 right-3 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Add to watchlist functionality
-                          }}
-                        >
-                          <FaPlus className="h-4 w-4" />
-                        </button>
-
-                        {/* Separate trailer button to avoid conflicts with poster click */}
-                        {movie.trailerUrl && (
-                          <button
-                            className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setCurrentFeaturedIndex(popularMovies.indexOf(movie));
-                              setShowTrailer(true);
-                            }}
-                          >
-                            <FaPlay className="h-4 w-4" />
-                          </button>
-                        )}
-                        
-                        <Link href={`/movie/${movie.id}`}>
-                          <div className="p-4">
-                            <h3 className="font-bold text-gray-800 dark:text-white mb-1 line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{movie.title}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {new Date(movie.release_date).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                              })}
-                            </p>
-                          </div>
-                        </Link>
-                      </div>
-                    ))}
+            {/* TV Shows Tab Content */}
+            {activeTab === 'tv' && (
+              <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-6">
+                    <FaTv className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                )}
-              </section>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                    TV Show Tracking
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-lg">
+                    This is a placeholder for the TV show tracking feature. More functionality will be added in future updates.
+                  </p>
+                  <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    Add TV Shows
+                  </button>
+                </div>
+              </div>
+            )}
 
-              {/* Coming Soon Section */}
-              {!isLoadingMovies && (
-                <section className="mb-12">
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Coming Soon</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {popularMovies.slice(11, 14).map((movie) => (
-                      <Link key={movie.id} href={`/movie/${movie.id}`}>
-                        <div className="flex bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                          <div className="relative w-1/3">
-                            {movie.poster_path ? (
-                              <Image
-                                src={getMoviePosterUrl(movie.poster_path)}
-                                alt={movie.title}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                <FaFilm className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-4 w-2/3">
-                            <h3 className="font-bold text-gray-800 dark:text-white mb-1">{movie.title}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                              Release:{' '}
-                              {new Date(movie.release_date).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">{movie.overview}</p>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
+            {/* Ratings Tab Content */}
+            {activeTab === 'ratings' && (
+              <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-6">
+                    <FaStar className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                </section>
-              )}
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                    Your Ratings & Reviews
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-lg">
+                    This is a placeholder for the ratings feature. More functionality will be added in future updates.
+                  </p>
+                  <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    Rate Content
+                  </button>
+                </div>
+              </div>
+            )}
 
-              {/* Recommended for You */}
-              {!isLoadingMovies && (
-                <section>
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Recommended for You</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {popularMovies.slice(14, 18).map((movie) => (
-                      <Link key={movie.id} href={`/movie/${movie.id}`}>
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                          <div className="relative aspect-[16/9] w-full">
-                            {movie.backdrop_path ? (
-                              <Image
-                                src={getMovieBackdropUrl(movie.backdrop_path)}
-                                alt={movie.title}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                              <h3 className="text-white font-bold p-4">{movie.title}</h3>
-                            </div>
-                            <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
-                              {movie.vote_average.toFixed(1)}
-                            </div>
-                            {/* Play trailer button */}
-                            {movie.trailerUrl && (
-                              <div
-                                className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setCurrentFeaturedIndex(popularMovies.indexOf(movie));
-                                  setShowTrailer(true);
-                                }}
-                              >
-                                <div className="bg-indigo-600/80 p-3 rounded-full hover:bg-indigo-600 transition-colors">
-                                  <FaPlay className="text-white h-5 w-5" />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-4">
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{movie.overview}</p>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                <FaCalendarAlt className="mr-1 h-3 w-3" />
-                                {new Date(movie.release_date).getFullYear()}
-                              </span>
-                              <button 
-                                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  // Add to watchlist functionality
-                                }}
-                              >
-                                <FaPlus className="h-4 w-4 text-gray-700 dark:text-gray-300" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
+            {/* Calendar Tab Content */}
+            {activeTab === 'calendar' && (
+              <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-6">
+                    <FaCalendarAlt className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                </section>
-              )}
-            </div>
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                    Release Calendar
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-lg">
+                    This is a placeholder for the calendar feature. More functionality will be added in future updates.
+                  </p>
+                  <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    View Calendar
+                  </button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
+
+      {/* Trailer Modal with Blurred Background */}
+      {showTrailer && popularMovies[currentFeaturedIndex]?.trailerUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+          {/* Blurred background instead of black */}
+          <div className="absolute inset-0 backdrop-blur-md bg-black/40" onClick={closeTrailer}></div>
+          <div className="relative w-full max-w-5xl z-10">
+            <button
+              onClick={closeTrailer}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2"
+              aria-label="Close trailer"
+            >
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+            {/* Improved aspect ratio container with proper sizing */}
+            <div className="relative pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-2xl">
+              <iframe
+                src={getYoutubeEmbedUrl(popularMovies[currentFeaturedIndex].trailerUrl)}
+                title={`${popularMovies[currentFeaturedIndex].title} Trailer`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute top-0 left-0 w-full h-full border-0"
+              ></iframe>
+            </div>
+            <div className="mt-4 text-center text-white">
+              <h3 className="text-xl font-bold">{popularMovies[currentFeaturedIndex].title} - Official Trailer</h3>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

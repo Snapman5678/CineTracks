@@ -65,11 +65,11 @@ export default function ProfilePage() {
 
   const sidebarItems = [
     { id: 'home', label: 'Home', icon: FaPlay, href: '/home' },
-    { id: 'watchlist', label: 'Watchlist', icon: FaList, href: '/dashboard' },
-    { id: 'movies', label: 'Movies', icon: FaFilm, href: '/dashboard?tab=movies' },
-    { id: 'tv', label: 'TV Shows', icon: FaTv, href: '/dashboard?tab=tv' },
-    { id: 'ratings', label: 'My Ratings', icon: FaStar, href: '/dashboard?tab=ratings' },
-    { id: 'calendar', label: 'Calendar', icon: FaCalendarAlt, href: '/dashboard?tab=calendar' },
+    { id: 'watchlist', label: 'Watchlist', icon: FaList, href: '/home?tab=watchlist' },
+    { id: 'movies', label: 'Movies', icon: FaFilm, href: '/home?tab=movies' },
+    { id: 'tv', label: 'TV Shows', icon: FaTv, href: '/home?tab=tv' },
+    { id: 'ratings', label: 'My Ratings', icon: FaStar, href: '/home?tab=ratings' },
+    { id: 'calendar', label: 'Calendar', icon: FaCalendarAlt, href: '/home?tab=calendar' },
   ];
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -231,7 +231,7 @@ export default function ProfilePage() {
                       Home
                     </div>
                   </Link>
-                  <Link href="/dashboard">
+                  <Link href="/home?tab=watchlist">
                     <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
                       <FaList className="mr-2 h-4 w-4" />
                       My Watchlist

@@ -282,13 +282,13 @@ export default function MovieDetails({ params }: MoviePageProps) {
                   <p className="text-sm font-semibold text-gray-800 dark:text-white">{user?.username || 'Guest'}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email || 'Guest User'}</p>
                 </div>
-                <Link href="/dashboard">
+                <Link href="/home">
                   <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
                     <FaBookmark className="mr-2 h-4 w-4" />
                     My Watchlist
                   </div>
                 </Link>
-                <Link href="/dashboard/profile">
+                <Link href="/home/profile">
                   <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center">
                     <FaCircle className="mr-2 h-4 w-4" />
                     Account Settings
