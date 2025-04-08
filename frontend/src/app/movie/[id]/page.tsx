@@ -132,7 +132,7 @@ export default function MovieDetails({ params }: MoviePageProps) {
       try {
         setIsLoadingMovie(true);
         // Get detailed movie info from our enhanced endpoint
-        const response = await fetch(`/api/movie-catalog/movies/${movieId}`);
+        const response = await fetch(`/api/catalog/movies/${movieId}`);
         if (!response.ok) {
           throw new Error('Movie not found');
         }

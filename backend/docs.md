@@ -45,6 +45,8 @@ docker exec -it db psql -U Aamir -d CineTracks
 
 ## **📝 Example Requests**  
 
+## Auth Service
+
 ### **1. Register a User and get token**  
 ```bash
 curl --location 'http://localhost:8080/api/auth/register' \

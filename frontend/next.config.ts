@@ -19,8 +19,13 @@ const nextConfig: NextConfig = {
         destination: 'http://localhost:8081/api/auth/:path*', // Auth service
       },
       {
-        source: '/api/:path*',
-        destination: 'http://localhost:8082/api/:path*', // Movie catalog service
+        source: '/api/catalog/:path*',
+        destination: 'http://localhost:8082/api/catalog/:path*', // catalog service
+      },
+      
+      {
+        source: '/api/watchlist/:path*',
+        destination: 'http://localhost:8082/api/watchlist/:path*', // watchlist service
       },
     ];
   },

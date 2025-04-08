@@ -85,7 +85,7 @@ export default function Home() {
   useEffect(() => {
     const fetchPopularMovies = async () => {
       try {
-        const response = await fetch('/api/movie-catalog/movies/popular?page=1');
+        const response = await fetch('/api/catalog/movies/popular?page=1');
         const data = await response.json();
         setPopularMovies(data);
         setIsLoadingMovies(false);

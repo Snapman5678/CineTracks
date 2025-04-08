@@ -36,7 +36,8 @@ CineTracks is a comprehensive entertainment tracking platform that allows users 
 CineTracks follows a microservices architecture:
 
 - **Auth Service**: Handles user registration, authentication, and authorization
-- **Movie Catalog Service**: Manages movie data, watchlists, and integrates with TMDB API
+- **Catalog Service**: Manages movie, TV show, and anime data, integrates with external APIs for content information and metadata
+- **Watchlist Service**: Manages user watchlists for movies, TV shows, and anime with status tracking and episode progress
 - **Frontend Service**: Delivers the user interface and interacts with backend services
 
 ## 🚀 Getting Started
@@ -82,7 +83,11 @@ cd backend/auth-service
 ./mvnw spring-boot:run
 
 # In a new terminal
-cd backend/movie-catalog-service
+cd backend/catalog-service
+./mvnw spring-boot:run
+
+# In a new terminal
+cd backend/watchlist-service
 ./mvnw spring-boot:run
 ```
 
@@ -100,7 +105,10 @@ npm run dev
 cd backend/auth-service
 ./mvnw test
 
-cd backend/movie-catalog-service
+cd backend/catalog-service
+./mvnw test
+
+cd backend/watchlist-service
 ./mvnw test
 ```
 
