@@ -21,6 +21,25 @@ interface Movie {
   trailerUrl?: string; // Added for trailer functionality
 }
 
+// Define TV Show interface
+interface TvShow {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string;
+  backdrop_path: string;
+  first_air_date: string;
+  vote_average: number;
+  genre_ids: number[];
+  origin_country: string[];
+  original_language: string;
+  popularity: number;
+  trailerUrl?: string;
+}
+
+// Anime is essentially a TV show with specific properties
+type Anime = TvShow;
+
 export default function Home() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -30,7 +49,11 @@ export default function Home() {
   const [activeSidebar, setActiveSidebar] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
+  const [popularTvShows, setPopularTvShows] = useState<TvShow[]>([]);
+  const [popularAnime, setPopularAnime] = useState<Anime[]>([]);
   const [isLoadingMovies, setIsLoadingMovies] = useState(true);
+  const [isLoadingTvShows, setIsLoadingTvShows] = useState(true);
+  const [isLoadingAnime, setIsLoadingAnime] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
   const [showTrailer, setShowTrailer] = useState(false);
@@ -80,7 +103,6 @@ export default function Home() {
       router.push('/login');
     }
   }, [isLoading, user, router]);
-
   // Fetch popular movies
   useEffect(() => {
     const fetchPopularMovies = async () => {
@@ -98,13 +120,87 @@ export default function Home() {
     fetchPopularMovies();
   }, []);
 
-  // Auto-cycle through featured movies every 5 seconds but stop when trailer is shown
+  // Fetch popular TV shows
+  useEffect(() => {
+    const fetchPopularTvShows = async () => {
+      try {
+        const response = await fetch('/api/catalog/tvshows/popular?page=1');
+        const data = await response.json();
+        setPopularTvShows(data);
+        setIsLoadingTvShows(false);
+      } catch (error) {
+        console.error('Error fetching popular TV shows:', error);
+        setIsLoadingTvShows(false);
+      }
+    };
+
+    fetchPopularTvShows();
+  }, []);
+
+  // Fetch popular anime
+  useEffect(() => {
+    const fetchPopularAnime = async () => {
+      try {
+        const response = await fetch('/api/catalog/tvshows/anime?page=1');
+        const data = await response.json();
+        setPopularAnime(data);
+        setIsLoadingAnime(false);
+      } catch (error) {
+        console.error('Error fetching popular anime:', error);
+        setIsLoadingAnime(false);
+      }
+    };
+
+    fetchPopularAnime();
+  }, []);
+
+  // Create a combined trending items array for the carousel
+  const [trendingItems, setTrendingItems] = useState<(Movie | TvShow)[]>([]);
+  const [itemType, setItemType] = useState<{[key: number]: 'movie' | 'tvshow' | 'anime'}>({});
+
+  // Combine trending items for the carousel
+  useEffect(() => {
+    if (!isLoadingMovies && !isLoadingTvShows && !isLoadingAnime) {
+      // Create a combined array of movies and TV shows, sorted by popularity
+      const combined: (Movie | TvShow)[] = [];
+      
+      // Add movies
+      popularMovies.forEach(movie => {
+        combined.push(movie);
+        setItemType(prev => ({ ...prev, [movie.id]: 'movie' }));
+      });
+      
+      // Add TV shows
+      popularTvShows.forEach(tvShow => {
+        combined.push(tvShow);
+        setItemType(prev => ({ ...prev, [tvShow.id]: 'tvshow' }));
+      });
+      
+      // Add anime
+      popularAnime.forEach(anime => {
+        combined.push(anime);
+        setItemType(prev => ({ ...prev, [anime.id]: 'anime' }));
+      });
+      
+      // Sort by popularity or vote average (higher numbers first)
+      const sorted = combined.sort((a, b) => {
+        if ('popularity' in a && 'popularity' in b) {
+          return b.popularity - a.popularity;
+        }
+        return b.vote_average - a.vote_average;
+      });
+      
+      // Take top 10 items for the carousel
+      setTrendingItems(sorted.slice(0, 10));
+    }
+  }, [isLoadingMovies, isLoadingTvShows, isLoadingAnime, popularMovies, popularTvShows, popularAnime]);
+  // Auto-cycle through featured items every 5 seconds but stop when trailer is shown
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
     
-    if (autoRotate && !showTrailer && popularMovies.length > 0) {
+    if (autoRotate && !showTrailer && trendingItems.length > 0) {
       interval = setInterval(() => {
-        setCurrentFeaturedIndex((prevIndex) => (prevIndex + 1) % popularMovies.length);
+        setCurrentFeaturedIndex((prevIndex) => (prevIndex + 1) % trendingItems.length);
       }, 5000);
     }
 
@@ -113,7 +209,7 @@ export default function Home() {
         clearInterval(interval);
       }
     };
-  }, [autoRotate, popularMovies.length, showTrailer]);
+  }, [autoRotate, trendingItems.length, showTrailer]);
 
   // Pause auto-rotation when showing trailer
   useEffect(() => {
@@ -124,21 +220,21 @@ export default function Home() {
     }
   }, [showTrailer]);
 
-  // Manually cycle to the next movie
+  // Manually cycle to the next item
   const nextMovie = () => {
-    if (popularMovies.length === 0) return;
-    setCurrentFeaturedIndex((prevIndex) => (prevIndex + 1) % popularMovies.length);
+    if (trendingItems.length === 0) return;
+    setCurrentFeaturedIndex((prevIndex) => (prevIndex + 1) % trendingItems.length);
   };
 
-  // Manually cycle to the previous movie
+  // Manually cycle to the previous item
   const prevMovie = () => {
-    if (popularMovies.length === 0) return;
-    setCurrentFeaturedIndex((prevIndex) => (prevIndex - 1 + popularMovies.length) % popularMovies.length);
+    if (trendingItems.length === 0) return;
+    setCurrentFeaturedIndex((prevIndex) => (prevIndex - 1 + trendingItems.length) % trendingItems.length);
   };
 
   // Watch trailer functionality
   const openTrailer = () => {
-    if (popularMovies[currentFeaturedIndex]?.trailerUrl) {
+    if (trendingItems[currentFeaturedIndex]?.trailerUrl) {
       setShowTrailer(true);
     }
   };
@@ -180,14 +276,13 @@ export default function Home() {
   const toggleSidebar = () => {
     setActiveSidebar(!activeSidebar);
   };
-
-  // Function to get movie poster URL
-  const getMoviePosterUrl = (posterPath: string) => {
+  // Function to get poster URL (works for movies and TV shows)
+  const getPosterUrl = (posterPath: string) => {
     return `https://image.tmdb.org/t/p/w500${posterPath}`;
   };
 
-  // Function to get movie backdrop URL
-  const getMovieBackdropUrl = (backdropPath: string) => {
+  // Function to get backdrop URL (works for movies and TV shows)
+  const getBackdropUrl = (backdropPath: string) => {
     return `https://image.tmdb.org/t/p/original${backdropPath}`;
   };
 
@@ -369,8 +464,7 @@ export default function Home() {
             {/* Dashboard Content or Home Content based on active tab */}
             {activeTab === 'home' && (
               <>
-                {/* Featured Movie Section with Arrows */}
-                <div className="relative w-full h-[70vh] overflow-hidden">
+                {/* Featured Movie Section with Arrows */}                <div className="relative w-full h-[70vh] overflow-hidden">
                   {/* Left navigation arrow */}
                   <button 
                     onClick={prevMovie}
@@ -387,9 +481,9 @@ export default function Home() {
                     <FaChevronRight className="h-6 w-6" />
                   </button>
 
-                  {popularMovies.map((movie, index) => (
+                  {trendingItems.map((item, index) => (
                     <motion.div
-                      key={movie.id}
+                      key={item.id}
                       className="absolute inset-0"
                       initial={{ opacity: 0 }}
                       animate={{
@@ -406,45 +500,65 @@ export default function Home() {
                     >
                       <div className="absolute inset-0">
                         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent z-10"></div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/50 to-transparent z-10"></div>
-                        {movie.backdrop_path && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/50 to-transparent z-10"></div>                        
+                        {item.backdrop_path && (
                           <Image
-                            src={getMovieBackdropUrl(movie.backdrop_path)}
-                            alt={movie.title}
+                            src={getBackdropUrl(item.backdrop_path)}
+                            alt={'title' in item ? item.title : item.name}
                             fill
                             className="object-cover object-center"
                             priority
-                            key={movie.id}
+                            key={item.id}
                           />
                         )}
                       </div>
                       <div className="relative z-20 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-16">
-                        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">{movie.title}</h1>
+                        {/* Content Type Badge */}
+                        <div className="mb-2">
+                          <span className={`px-3 py-1 text-white text-sm rounded-full ${
+                            itemType[item.id] === 'movie' ? 'bg-blue-600/90' : 
+                            itemType[item.id] === 'tvshow' ? 'bg-green-600/90' :
+                            'bg-purple-600/90'
+                          }`}>
+                            {itemType[item.id] === 'movie' ? 'Movie' : 
+                             itemType[item.id] === 'tvshow' ? 'TV Show' : 'Anime'}
+                          </span>
+                        </div>
+
+                        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
+                          {'title' in item ? item.title : item.name}
+                        </h1>
                         <p className="text-lg text-gray-300 max-w-2xl mb-6">
-                          {movie.overview.length > 200 ? `${movie.overview.substring(0, 200)}...` : movie.overview}
+                          {item.overview.length > 200 ? `${item.overview.substring(0, 200)}...` : item.overview}
                         </p>
                         <div className="flex flex-wrap gap-3 mb-8">
                           <span className="px-3 py-1 bg-indigo-600/90 text-white text-sm rounded-full">
-                            Rating: {movie.vote_average.toFixed(1)}/10
+                            Rating: {item.vote_average.toFixed(1)}/10
                           </span>
                           <span className="px-3 py-1 bg-gray-600/90 text-white text-sm rounded-full">
-                            {new Date(movie.release_date).getFullYear()}
+                            {new Date('release_date' in item ? item.release_date : item.first_air_date).getFullYear()}
                           </span>
                         </div>
                         <div className="flex gap-4 flex-wrap">
                           <button
                             onClick={openTrailer}
-                            disabled={!movie.trailerUrl}
+                            disabled={!item.trailerUrl}
                             className={`px-6 py-3 rounded-md flex items-center gap-2 transition-colors ${
-                              movie.trailerUrl
+                              item.trailerUrl
                                 ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                                 : 'bg-gray-400 text-white cursor-not-allowed'
                             }`}
                           >
                             <FaPlay className="h-4 w-4" />
-                            <span>{movie.trailerUrl ? 'Watch Trailer' : 'No Trailer Available'}</span>
+                            <span>{item.trailerUrl ? 'Watch Trailer' : 'No Trailer Available'}</span>
                           </button>
-                          <Link href={`/movie/${movie.id}`}>
+                          <Link href={
+                            itemType[item.id] === 'movie' 
+                              ? `/movie/${item.id}` 
+                              : itemType[item.id] === 'anime' 
+                                ? `/tvshow/${item.id}?type=anime` 
+                                : `/tvshow/${item.id}`
+                          }>
                             <button className="px-6 py-3 bg-gray-700/70 text-white rounded-md hover:bg-gray-600 transition-colors">
                               View Details
                             </button>
@@ -454,9 +568,9 @@ export default function Home() {
                     </motion.div>
                   ))}
 
-                  {/* Progress indicators for featured movies */}
+                  {/* Progress indicators for featured items */}
                   <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
-                    {popularMovies.map((_, index) => (
+                    {trendingItems.map((_, index) => (
                       <button
                         key={index}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -473,7 +587,6 @@ export default function Home() {
                   {/* Popular Movies Section */}
                   <section className="mb-12">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Popular Movies</h2>
-
                     {isLoadingMovies ? (
                       <div className="flex items-center justify-center py-20">
                         <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
@@ -489,7 +602,7 @@ export default function Home() {
                               <div className="relative aspect-[2/3] w-full">
                                 {movie.poster_path ? (
                                   <Image
-                                    src={getMoviePosterUrl(movie.poster_path)}
+                                    src={getPosterUrl(movie.poster_path)}
                                     alt={movie.title}
                                     fill
                                     className="object-cover"
@@ -503,42 +616,10 @@ export default function Home() {
                                   {movie.vote_average.toFixed(1)}
                                 </div>
                               </div>
-                            </Link>
-
-                            {/* Add to watchlist button (icon only) */}
-                            <button 
-                              className="absolute bottom-20 right-3 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                // Add to watchlist functionality
-                              }}
-                            >
-                              <FaPlus className="h-4 w-4" />
-                            </button>
-
-                            {/* Separate trailer button to avoid conflicts with poster click */}
-                            {movie.trailerUrl && (
-                              <button
-                                className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setCurrentFeaturedIndex(popularMovies.indexOf(movie));
-                                  setShowTrailer(true);
-                                }}
-                              >
-                                <FaPlay className="h-4 w-4" />
-                              </button>
-                            )}
-                            
-                            <Link href={`/movie/${movie.id}`}>
                               <div className="p-4">
                                 <h3 className="font-bold text-gray-800 dark:text-white mb-1 line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{movie.title}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {new Date(movie.release_date).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                  })}
+                                  {new Date(movie.release_date).toLocaleDateString('en-US', { year: 'numeric' })}
                                 </p>
                               </div>
                             </Link>
@@ -548,115 +629,203 @@ export default function Home() {
                     )}
                   </section>
 
-                  {/* Coming Soon Section */}
-                  {!isLoadingMovies && (
-                    <section className="mb-12">
-                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Coming Soon</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {popularMovies.slice(11, 14).map((movie) => (
-                          <Link key={movie.id} href={`/movie/${movie.id}`}>
-                            <div className="flex bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                              <div className="relative w-1/3">
-                                {movie.poster_path ? (
-                                  <Image
-                                    src={getMoviePosterUrl(movie.poster_path)}
-                                    alt={movie.title}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                    <FaFilm className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="p-4 w-2/3">
-                                <h3 className="font-bold text-gray-800 dark:text-white mb-1">{movie.title}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                  Release:{' '}
-                                  {new Date(movie.release_date).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  })}
-                                </p>
-                                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">{movie.overview}</p>
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
+                  {/* --- Popular TV Shows Section --- */}
+                  <section className="mb-12">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Popular TV Shows</h2>
+                    {isLoadingTvShows ? (
+                      <div className="flex items-center justify-center py-20">
+                        <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
                       </div>
-                    </section>
-                  )}
-
-                  {/* Recommended for You */}
-                  {!isLoadingMovies && (
-                    <section>
-                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Recommended for You</h2>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {popularMovies.slice(14, 18).map((movie) => (
-                          <Link key={movie.id} href={`/movie/${movie.id}`}>
-                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                              <div className="relative aspect-[16/9] w-full">
-                                {movie.backdrop_path ? (
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        {popularTvShows.slice(0, 10).map((tvShow) => (
+                          <div
+                            key={tvShow.id}
+                            className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300 relative group"
+                          >
+                            <Link href={`/tvshow/${tvShow.id}`} className="block">
+                              <div className="relative aspect-[2/3] w-full">
+                                {tvShow.poster_path ? (
                                   <Image
-                                    src={getMovieBackdropUrl(movie.backdrop_path)}
-                                    alt={movie.title}
+                                    src={getPosterUrl(tvShow.poster_path)}
+                                    alt={tvShow.name}
                                     fill
                                     className="object-cover"
                                   />
                                 ) : (
                                   <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-                                    <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                                    <FaTv className="h-16 w-16 text-gray-400 dark:text-gray-500" />
                                   </div>
                                 )}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
-                                  <h3 className="text-white font-bold p-4">{movie.title}</h3>
-                                </div>
                                 <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
-                                  {movie.vote_average.toFixed(1)}
+                                  {tvShow.vote_average.toFixed(1)}
                                 </div>
-                                {/* Play trailer button */}
-                                {movie.trailerUrl && (
-                                  <div
-                                    className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      setCurrentFeaturedIndex(popularMovies.indexOf(movie));
-                                      setShowTrailer(true);
-                                    }}
-                                  >
-                                    <div className="bg-indigo-600/80 p-3 rounded-full hover:bg-indigo-600 transition-colors">
-                                      <FaPlay className="text-white h-5 w-5" />
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                               <div className="p-4">
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{movie.overview}</p>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                    <FaCalendarAlt className="mr-1 h-3 w-3" />
-                                    {new Date(movie.release_date).getFullYear()}
-                                  </span>
-                                  <button 
-                                    className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      // Add to watchlist functionality
-                                    }}
-                                  >
-                                    <FaPlus className="h-4 w-4 text-gray-700 dark:text-gray-300" />
-                                  </button>
-                                </div>
+                                <h3 className="font-bold text-gray-800 dark:text-white mb-1 line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{tvShow.name}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {tvShow.first_air_date ? new Date(tvShow.first_air_date).toLocaleDateString('en-US', { year: 'numeric' }) : 'Unknown date'}
+                                </p>
                               </div>
-                            </div>
-                          </Link>
+                            </Link>
+                          </div>
                         ))}
                       </div>
-                    </section>
-                  )}
+                    )}
+                  </section>
+
+                  {/* --- Popular Anime Section --- */}
+                  <section className="mb-12">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Popular Anime</h2>
+                    {isLoadingAnime ? (
+                      <div className="flex items-center justify-center py-20">
+                        <div className="h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        {popularAnime.slice(0, 10).map((anime) => (
+                          <div
+                            key={anime.id}
+                            className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300 relative group"
+                          >
+                            <Link href={`/tvshow/${anime.id}?type=anime`} className="block">
+                              <div className="relative aspect-[2/3] w-full">
+                                {anime.poster_path ? (
+                                  <Image
+                                    src={getPosterUrl(anime.poster_path)}
+                                    alt={anime.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                    <FaTv className="h-16 w-16 text-gray-400 dark:text-gray-500" />
+                                  </div>
+                                )}
+                                <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                  {anime.vote_average.toFixed(1)}
+                                </div>
+                                <div className="absolute top-2 left-2 bg-purple-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                  Anime
+                                </div>
+                              </div>
+                              <div className="p-4">
+                                <h3 className="font-bold text-gray-800 dark:text-white mb-1 line-clamp-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{anime.name}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {anime.first_air_date ? new Date(anime.first_air_date).toLocaleDateString('en-US', { year: 'numeric' }) : 'Unknown date'}
+                                </p>
+                              </div>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="mb-12">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Coming Soon</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {popularMovies.slice(11, 14).map((movie) => (
+                        <Link key={movie.id} href={`/movie/${movie.id}`}>
+                          <div className="flex bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                            <div className="relative w-1/3">
+                              {movie.poster_path ? (
+                                <Image
+                                  src={getPosterUrl(movie.poster_path)}
+                                  alt={movie.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                  <FaFilm className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-4 w-2/3">
+                              <h3 className="font-bold text-gray-800 dark:text-white mb-1">{movie.title}</h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                Release:{' '}
+                                {new Date(movie.release_date).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">{movie.overview}</p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Recommended for You */}
+                  <section>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Recommended for You</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {popularMovies.slice(14, 18).map((movie) => (
+                        <Link key={movie.id} href={`/movie/${movie.id}`}>
+                          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                            <div className="relative aspect-[16/9] w-full">
+                              {movie.backdrop_path ? (
+                                <Image
+                                  src={getBackdropUrl(movie.backdrop_path)}
+                                  alt={movie.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
+                                  <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                                <h3 className="text-white font-bold p-4">{movie.title}</h3>
+                              </div>
+                              <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                {movie.vote_average.toFixed(1)}
+                              </div>
+                              {/* Play trailer button */}
+                              {movie.trailerUrl && (
+                                <div
+                                  className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setCurrentFeaturedIndex(popularMovies.indexOf(movie));
+                                    setShowTrailer(true);
+                                  }}
+                                >
+                                  <div className="bg-indigo-600/80 p-3 rounded-full hover:bg-indigo-600 transition-colors">
+                                    <FaPlay className="text-white h-5 w-5" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-4">
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{movie.overview}</p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                  <FaCalendarAlt className="mr-1 h-3 w-3" />
+                                  {new Date(movie.release_date).getFullYear()}
+                                </span>
+                                <button 
+                                  className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    // Add to watchlist functionality
+                                  }}
+                                >
+                                  <FaPlus className="h-4 w-4 text-gray-700 dark:text-gray-300" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
                 </div>
               </>
             )}
@@ -795,10 +964,8 @@ export default function Home() {
             )}
           </main>
         </div>
-      </div>
-
-      {/* Trailer Modal with Blurred Background */}
-      {showTrailer && popularMovies[currentFeaturedIndex]?.trailerUrl && (
+      </div>      {/* Trailer Modal with Blurred Background */}
+      {showTrailer && trendingItems[currentFeaturedIndex]?.trailerUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
           {/* Blurred background instead of black */}
           <div className="absolute inset-0 backdrop-blur-md bg-black/40" onClick={closeTrailer}></div>
@@ -821,15 +988,17 @@ export default function Home() {
             {/* Improved aspect ratio container with proper sizing */}
             <div className="relative pb-[56.25%] h-0 overflow-hidden rounded-lg shadow-2xl">
               <iframe
-                src={getYoutubeEmbedUrl(popularMovies[currentFeaturedIndex].trailerUrl)}
-                title={`${popularMovies[currentFeaturedIndex].title} Trailer`}
+                src={getYoutubeEmbedUrl(trendingItems[currentFeaturedIndex].trailerUrl)}
+                title={`${'title' in trendingItems[currentFeaturedIndex] ? trendingItems[currentFeaturedIndex].title : trendingItems[currentFeaturedIndex].name} Trailer`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="absolute top-0 left-0 w-full h-full border-0"
               ></iframe>
             </div>
             <div className="mt-4 text-center text-white">
-              <h3 className="text-xl font-bold">{popularMovies[currentFeaturedIndex].title} - Official Trailer</h3>
+              <h3 className="text-xl font-bold">
+                {'title' in trendingItems[currentFeaturedIndex] ? trendingItems[currentFeaturedIndex].title : trendingItems[currentFeaturedIndex].name} - Official Trailer
+              </h3>
             </div>
           </div>
         </div>

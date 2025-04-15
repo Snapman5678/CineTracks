@@ -158,3 +158,119 @@ curl --location --request DELETE 'http://localhost:8080/api/auth/user' \
 --- 
 
 ✅ **Ready to go!** Deploy with confidence. 🚀
+
+
+
+post http://localhost:8083/api/watchlist/movies
+example input
+{
+  "username": "new_username",
+  "movieId": "950387",
+  "status": "PLAN_TO_WATCH"
+}
+output 
+{
+    "id": 2,
+    "username": "new_username",
+    "movieId": "950387",
+    "status": "PLAN_TO_WATCH",
+    "createdAt": 1744710638332,
+    "updatedAt": 1744710638332
+}
+
+GET http://localhost:8083/api/watchlist/movies/new_username
+example 
+output 
+[
+    {
+        "id": 2,
+        "username": "new_username",
+        "movieId": "950387",
+        "status": "PLAN_TO_WATCH",
+        "createdAt": 1744710638332,
+        "updatedAt": 1744710638332
+    }
+]
+
+
+PUT http://localhost:8083/api/watchlist/movies/new_username/950387
+example input 
+{
+  "status": "COMPLETED"
+}
+output 
+{
+    "id": 2,
+    "username": "new_username",
+    "movieId": "950387",
+    "status": "COMPLETED",
+    "createdAt": 1744710638332,
+    "updatedAt": 1744710653917
+}
+
+DELETE http://localhost:8083/api/watchlist/movies/new_username/950387
+example 
+output 204 no content
+
+POST http://localhost:8083/api/watchlist/tvshows
+example input 
+{
+  "username": "new_username",
+  "tvShowId": "1396",
+  "currentSeason": 1,
+  "currentEpisode": 3,
+  "status": "CURRENTLY_WATCHING"
+}
+output 
+{
+    "id": 2,
+    "username": "new_username",
+    "tvShowId": "1396",
+    "currentSeason": 1,
+    "currentEpisode": 3,
+    "status": "CURRENTLY_WATCHING",
+    "createdAt": 1744710676314,
+    "updatedAt": 1744710676314
+}
+
+
+GET http://localhost:8083/api/watchlist/tvshows/new_username
+example
+output
+[
+    {
+        "id": 2,
+        "username": "new_username",
+        "tvShowId": "1396",
+        "currentSeason": 1,
+        "currentEpisode": 3,
+        "status": "CURRENTLY_WATCHING",
+        "createdAt": 1744710676314,
+        "updatedAt": 1744710676314
+    }
+]
+
+PUT http://localhost:8083/api/watchlist/tvshows/new_username/1396
+example input 
+{
+  "username": "new_username",
+  "tvShowId": "1396",
+  "currentSeason": 5,
+  "currentEpisode": 16,
+  "status": "COMPLETED"
+}
+output
+{
+    "id": 2,
+    "username": "new_username",
+    "tvShowId": "1396",
+    "currentSeason": 5,
+    "currentEpisode": 16,
+    "status": "COMPLETED",
+    "createdAt": 1744710676314,
+    "updatedAt": 1744710697828
+}
+
+DELETE http://localhost:8083/api/watchlist/movies/new_username/1396
+example
+output 204 no content
