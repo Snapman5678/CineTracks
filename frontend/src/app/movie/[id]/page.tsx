@@ -6,6 +6,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaArrowLeft, FaPlay, FaStar, FaCalendarAlt, FaClock, FaGlobe, FaMoneyBillWave, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaCircle, FaUserCircle, FaSearch, FaLanguage, FaMapMarkerAlt, FaFilm, FaChevronRight, FaChevronLeft } from 'react-icons/fa';
+import { WatchStatus, DetailedMovie as DetailedMovieType } from '@/types';
+import { 
+  getMovieWatchlist,
+  addMovieToWatchlist,
+  updateMovieWatchStatus,
+  removeMovieFromWatchlist
+} from '@/utils/watchlistApi';
 
 // Extended Movie interface with additional details
 interface DetailedMovie {
@@ -83,18 +90,28 @@ export default function MovieDetails({ params }: MoviePageProps) {
   const [isLoadingMovie, setIsLoadingMovie] = useState(true);
   const [showTrailer, setShowTrailer] = useState(false);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [watchStatus, setWatchStatus] = useState<WatchStatus | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // For mobile view tabs
+  const [isUpdatingWatchlist, setIsUpdatingWatchlist] = useState(false);
   
   // Refs for dropdown menu functionality
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const watchlistMenuRef = useRef<HTMLDivElement>(null);
+  const watchlistButtonRef = useRef<HTMLButtonElement>(null);
 
   // Toggle profile menu dropdown
   const toggleProfileMenu = () => {
     setShowProfileMenu(!showProfileMenu);
+  };
+
+  // Toggle watchlist menu dropdown
+  const toggleWatchlistMenu = () => {
+    setShowWatchlistMenu(!showWatchlistMenu);
   };
 
   // Close profile menu when clicking outside
@@ -109,13 +126,23 @@ export default function MovieDetails({ params }: MoviePageProps) {
       ) {
         setShowProfileMenu(false);
       }
+      
+      if (
+        showWatchlistMenu &&
+        watchlistMenuRef.current &&
+        watchlistButtonRef.current &&
+        !watchlistMenuRef.current.contains(event.target as Node) &&
+        !watchlistButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowWatchlistMenu(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showProfileMenu]);
+  }, [showProfileMenu, showWatchlistMenu]);
 
   // Protect this page - redirect if not authenticated
   useEffect(() => {
@@ -123,7 +150,6 @@ export default function MovieDetails({ params }: MoviePageProps) {
       router.push('/login');
     }
   }, [isLoading, user, router]);
-
   // Fetch detailed movie info
   useEffect(() => {
     const fetchMovieDetails = async () => {
@@ -150,6 +176,32 @@ export default function MovieDetails({ params }: MoviePageProps) {
       fetchMovieDetails();
     }
   }, [movieId]);
+  
+  // Check if movie is in watchlist when page loads
+  useEffect(() => {
+    const checkWatchlistStatus = async () => {
+      if (!user || isGuest || !movieId) return;
+      
+      try {
+        const watchlist = await getMovieWatchlist(user.username);
+        const movieInWatchlist = watchlist.find(item => item.movieId === movieId);
+        
+        if (movieInWatchlist) {
+          setIsInWatchlist(true);
+          setWatchStatus(movieInWatchlist.status);
+        } else {
+          setIsInWatchlist(false);
+          setWatchStatus(null);
+        }
+      } catch (error) {
+        console.error('Error checking watchlist status:', error);
+      }
+    };
+    
+    if (!isLoading) {
+      checkWatchlistStatus();
+    }
+  }, [user, isGuest, movieId, isLoading]);
 
   // Watch trailer functionality
   const openTrailer = () => {
@@ -162,7 +214,7 @@ export default function MovieDetails({ params }: MoviePageProps) {
     setShowTrailer(false);
   };
 
-  // Extract YouTube video ID from YouTube URL
+    // Extract YouTube video ID from YouTube URL
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return '';
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -171,10 +223,52 @@ export default function MovieDetails({ params }: MoviePageProps) {
     return `https://www.youtube.com/embed/${videoId}?rel=0`;
   };
 
-  // Toggle watchlist status
-  const toggleWatchlist = () => {
-    setIsInWatchlist(!isInWatchlist);
-    // Here you would call your API to update the user's watchlist
+  // Watchlist functionality
+  const addToWatchlist = async (status: WatchStatus) => {
+    if (!user || isGuest || !movie) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await addMovieToWatchlist(user.username, movieId, status);
+      setIsInWatchlist(true);
+      setWatchStatus(status);
+      setShowWatchlistMenu(false);
+    } catch (error) {
+      console.error('Error adding movie to watchlist:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
+  };
+
+  const updateWatchlistStatus = async (status: WatchStatus) => {
+    if (!user || isGuest || !movie) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await updateMovieWatchStatus(user.username, movieId, status);
+      setWatchStatus(status);
+      setShowWatchlistMenu(false);
+    } catch (error) {
+      console.error('Error updating movie watchlist status:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
+  };
+
+  const removeFromWatchlist = async () => {
+    if (!user || isGuest || !movie) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await removeMovieFromWatchlist(user.username, movieId);
+      setIsInWatchlist(false);
+      setWatchStatus(null);
+      setShowWatchlistMenu(false);
+    } catch (error) {
+      console.error('Error removing movie from watchlist:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
   };
 
   // Toggle favorite status
@@ -461,15 +555,69 @@ export default function MovieDetails({ params }: MoviePageProps) {
                     <FaPlay className="h-4 w-4" />
                     <span>Watch Trailer</span>
                   </button>
-                )}
+                )}                <div className="relative">
+                  <button
+                    ref={watchlistButtonRef}
+                    onClick={toggleWatchlistMenu}
+                    className="flex items-center gap-2 rounded-md bg-gray-700/80 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-600"
+                    disabled={isUpdatingWatchlist || isGuest}
+                  >
+                    {isUpdatingWatchlist ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                    ) : (
+                      isInWatchlist ? <FaBookmark className="h-4 w-4" /> : <FaRegBookmark className="h-4 w-4" />
+                    )}
+                    <span>
+                      {isInWatchlist 
+                        ? watchStatus === WatchStatus.PLAN_TO_WATCH 
+                          ? 'Want to Watch' 
+                          : watchStatus === WatchStatus.CURRENTLY_WATCHING 
+                            ? 'Watching' 
+                            : 'Completed'
+                        : 'Add to Watchlist'}
+                    </span>
+                  </button>
 
-                <button
-                  onClick={toggleWatchlist}
-                  className="flex items-center gap-2 rounded-md bg-gray-700/80 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-600"
-                >
-                  {isInWatchlist ? <FaBookmark className="h-4 w-4" /> : <FaRegBookmark className="h-4 w-4" />}
-                  <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
-                </button>
+                  {/* Watchlist dropdown menu */}
+                  {showWatchlistMenu && (
+                    <div
+                      ref={watchlistMenuRef}
+                      className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800 z-50"
+                    >
+                      <div className="py-1">
+                        <button
+                          onClick={() => isInWatchlist ? updateWatchlistStatus(WatchStatus.PLAN_TO_WATCH) : addToWatchlist(WatchStatus.PLAN_TO_WATCH)}
+                          className={`block w-full px-4 py-2 text-left text-sm ${watchStatus === WatchStatus.PLAN_TO_WATCH ? 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'} hover:bg-gray-100 dark:hover:bg-gray-700`}
+                        >
+                          Want to Watch
+                        </button>
+                        <button
+                          onClick={() => isInWatchlist ? updateWatchlistStatus(WatchStatus.CURRENTLY_WATCHING) : addToWatchlist(WatchStatus.CURRENTLY_WATCHING)}
+                          className={`block w-full px-4 py-2 text-left text-sm ${watchStatus === WatchStatus.CURRENTLY_WATCHING ? 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'} hover:bg-gray-100 dark:hover:bg-gray-700`}
+                        >
+                          Currently Watching
+                        </button>
+                        <button
+                          onClick={() => isInWatchlist ? updateWatchlistStatus(WatchStatus.COMPLETED) : addToWatchlist(WatchStatus.COMPLETED)}
+                          className={`block w-full px-4 py-2 text-left text-sm ${watchStatus === WatchStatus.COMPLETED ? 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'} hover:bg-gray-100 dark:hover:bg-gray-700`}
+                        >
+                          Completed
+                        </button>
+                        {isInWatchlist && (
+                          <>
+                            <hr className="my-1 border-gray-200 dark:border-gray-700" />
+                            <button
+                              onClick={removeFromWatchlist}
+                              className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                              Remove from Watchlist
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={toggleFavorite}

@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
       
       {
         source: '/api/watchlist/:path*',
-        destination: 'http://localhost:8082/api/watchlist/:path*', // watchlist service
+        destination: 'http://localhost:8083/api/watchlist/:path*', // watchlist service
       },
     ];
   },

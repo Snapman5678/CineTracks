@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FaArrowLeft, FaPlay, FaBookmark, FaRegBookmark, FaHeart, FaRegHeart, FaSearch, FaStar, FaUserCircle, FaExternalLinkAlt, FaFilm, FaTv, FaUser, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
+import { FaArrowLeft, FaPlay, FaStar, FaCalendarAlt, FaClock, FaGlobe, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaCircle, FaUserCircle, FaSearch, FaFilm, FaTv, FaListUl, FaChevronRight, FaChevronLeft, FaExternalLinkAlt } from 'react-icons/fa';
+import { WatchStatus, DetailedTvShow as DetailedTvShowType } from '@/types';
+import { 
+  getTvShowWatchlist,
+  addTvShowToWatchlist,
+  updateTvShowWatchStatus,
+  removeTvShowFromWatchlist
+} from '@/utils/watchlistApi';
 
 // Interface for detailed TV show/anime data
 interface DetailedTvShow {
@@ -104,18 +111,36 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
   const [isLoadingTvShow, setIsLoadingTvShow] = useState(true);
   const [showTrailer, setShowTrailer] = useState(false);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [watchStatus, setWatchStatus] = useState<WatchStatus | null>(null);
+  const [currentSeason, setCurrentSeason] = useState<number | undefined>(1);
+  const [currentEpisode, setCurrentEpisode] = useState<number | undefined>(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showWatchlistMenu, setShowWatchlistMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // For mobile view tabs
+  const [isUpdatingWatchlist, setIsUpdatingWatchlist] = useState(false);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
   
   // Refs for dropdown menu functionality
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const watchlistMenuRef = useRef<HTMLDivElement>(null);
+  const watchlistButtonRef = useRef<HTMLButtonElement>(null);
 
   // Toggle profile menu dropdown
   const toggleProfileMenu = () => {
     setShowProfileMenu(!showProfileMenu);
+  };
+
+  // Toggle watchlist menu dropdown
+  const toggleWatchlistMenu = () => {
+    setShowWatchlistMenu(!showWatchlistMenu);
+  };
+
+  // Toggle progress dialog
+  const toggleProgressDialog = () => {
+    setShowProgressDialog(!showProgressDialog);
   };
 
   // Close profile menu when clicking outside
@@ -130,13 +155,23 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
       ) {
         setShowProfileMenu(false);
       }
+      
+      if (
+        showWatchlistMenu &&
+        watchlistMenuRef.current &&
+        watchlistButtonRef.current &&
+        !watchlistMenuRef.current.contains(event.target as Node) &&
+        !watchlistButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowWatchlistMenu(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showProfileMenu]);
+  }, [showProfileMenu, showWatchlistMenu]);
 
   // Protect this page - redirect if not authenticated
   useEffect(() => {
@@ -177,6 +212,36 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
     }
   }, [tvShowId, isAnime]);
 
+  // Check if TV show is in user's watchlist
+  useEffect(() => {
+    const checkWatchlistStatus = async () => {
+      if (!user || !tvShowId) return;
+      
+      try {
+        const watchlist = await getTvShowWatchlist(user.username);
+        const tvShowInWatchlist = watchlist.find(item => item.tvShowId === tvShowId);
+        
+        if (tvShowInWatchlist) {
+          setIsInWatchlist(true);
+          setWatchStatus(tvShowInWatchlist.status);
+          setCurrentSeason(tvShowInWatchlist.currentSeason || 1);
+          setCurrentEpisode(tvShowInWatchlist.currentEpisode || 0);
+        } else {
+          setIsInWatchlist(false);
+          setWatchStatus(null);
+          setCurrentSeason(1);
+          setCurrentEpisode(0);
+        }
+      } catch (error) {
+        console.error("Error checking watchlist status:", error);
+      }
+    };
+
+    if (user && !isGuest) {
+      checkWatchlistStatus();
+    }
+  }, [user, tvShowId, isGuest]);
+
   // Watch trailer functionality
   const openTrailer = () => {
     if (tvShow?.trailerUrl) {
@@ -188,7 +253,7 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
     setShowTrailer(false);
   };
 
-  // Extract YouTube video ID from YouTube URL
+    // Extract YouTube video ID from YouTube URL
   const getYoutubeEmbedUrl = (url: string) => {
     if (!url) return '';
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -197,10 +262,84 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
     return `https://www.youtube.com/embed/${videoId}?rel=0`;
   };
 
-  // Toggle watchlist status
-  const toggleWatchlist = () => {
-    setIsInWatchlist(!isInWatchlist);
-    // Here you would call your API to update the user's watchlist
+  // Watchlist functionality
+  const addToWatchlist = async (status: WatchStatus) => {
+    if (!user || isGuest || !tvShowId) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await addTvShowToWatchlist(
+        user.username, 
+        tvShowId, 
+        status, 
+        currentSeason, 
+        currentEpisode
+      );
+      setIsInWatchlist(true);
+      setWatchStatus(status);
+      setShowWatchlistMenu(false);
+    } catch (error) {
+      console.error('Error adding TV show to watchlist:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
+  };
+
+  const updateWatchlistStatus = async (status: WatchStatus) => {
+    if (!user || isGuest || !tvShowId) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await updateTvShowWatchStatus(
+        user.username, 
+        tvShowId, 
+        status,
+        currentSeason,
+        currentEpisode
+      );
+      setWatchStatus(status);
+      setShowWatchlistMenu(false);
+    } catch (error) {
+      console.error('Error updating TV show watchlist status:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
+  };
+
+  const updateWatchProgress = async () => {
+    if (!user || isGuest || !tvShowId || !isInWatchlist) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await updateTvShowWatchStatus(
+        user.username,
+        tvShowId,
+        watchStatus || WatchStatus.CURRENTLY_WATCHING,
+        currentSeason,
+        currentEpisode
+      );
+      setShowProgressDialog(false);
+    } catch (error) {
+      console.error('Error updating TV show progress:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
+  };
+
+  const removeFromWatchlist = async () => {
+    if (!user || isGuest || !tvShowId) return;
+    
+    setIsUpdatingWatchlist(true);
+    try {
+      await removeTvShowFromWatchlist(user.username, tvShowId);
+      setIsInWatchlist(false);
+      setWatchStatus(null);
+      setShowWatchlistMenu(false);
+    } catch (error) {
+      console.error('Error removing TV show from watchlist:', error);
+    } finally {
+      setIsUpdatingWatchlist(false);
+    }
   };
 
   // Toggle favorite status
@@ -411,16 +550,80 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
                     <FaPlay className="h-4 w-4" />
                     <span>Watch Trailer</span>
                   </button>
-                )}
+                )}                {/* Add to Watchlist Button */}
+                <div className="relative">
+                  <button
+                    ref={watchlistButtonRef}
+                    onClick={toggleWatchlistMenu}
+                    className="flex items-center gap-2 rounded-md bg-gray-700/80 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-600"
+                    disabled={isUpdatingWatchlist || isGuest}
+                  >
+                    {isUpdatingWatchlist ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-white"></div>
+                    ) : (
+                      isInWatchlist ? <FaBookmark className="h-4 w-4" /> : <FaRegBookmark className="h-4 w-4" />
+                    )}
+                    <span>
+                      {isInWatchlist 
+                        ? watchStatus === WatchStatus.PLAN_TO_WATCH 
+                          ? 'Want to Watch' 
+                          : watchStatus === WatchStatus.CURRENTLY_WATCHING 
+                            ? 'Watching' 
+                            : 'Completed'
+                        : 'Add to Watchlist'}
+                    </span>
+                  </button>
 
-                {/* Add to Watchlist Button */}
-                <button
-                  onClick={toggleWatchlist}
-                  className="flex items-center gap-2 rounded-md bg-gray-700/80 px-6 py-3 font-medium text-white transition-colors hover:bg-gray-600"
-                >
-                  {isInWatchlist ? <FaBookmark className="h-4 w-4" /> : <FaRegBookmark className="h-4 w-4" />}
-                  <span>{isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}</span>
-                </button>
+                  {/* Watchlist dropdown menu */}
+                  {showWatchlistMenu && (
+                    <div
+                      ref={watchlistMenuRef}
+                      className="absolute right-0 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-800 z-50"
+                    >
+                      <div className="py-1">
+                        <button
+                          onClick={() => isInWatchlist ? updateWatchlistStatus(WatchStatus.PLAN_TO_WATCH) : addToWatchlist(WatchStatus.PLAN_TO_WATCH)}
+                          className={`block w-full px-4 py-2 text-left text-sm ${watchStatus === WatchStatus.PLAN_TO_WATCH ? 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'} hover:bg-gray-100 dark:hover:bg-gray-700`}
+                        >
+                          Want to Watch
+                        </button>
+                        <button
+                          onClick={() => isInWatchlist ? updateWatchlistStatus(WatchStatus.CURRENTLY_WATCHING) : addToWatchlist(WatchStatus.CURRENTLY_WATCHING)}
+                          className={`block w-full px-4 py-2 text-left text-sm ${watchStatus === WatchStatus.CURRENTLY_WATCHING ? 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'} hover:bg-gray-100 dark:hover:bg-gray-700`}
+                        >
+                          Currently Watching
+                        </button>
+                        <button
+                          onClick={() => isInWatchlist ? updateWatchlistStatus(WatchStatus.COMPLETED) : addToWatchlist(WatchStatus.COMPLETED)}
+                          className={`block w-full px-4 py-2 text-left text-sm ${watchStatus === WatchStatus.COMPLETED ? 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'} hover:bg-gray-100 dark:hover:bg-gray-700`}
+                        >
+                          Completed
+                        </button>
+
+                        {watchStatus === WatchStatus.CURRENTLY_WATCHING && (
+                          <button
+                            onClick={toggleProgressDialog}
+                            className="block w-full px-4 py-2 text-left text-sm text-indigo-600 dark:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            Update Progress
+                          </button>
+                        )}
+                        
+                        {isInWatchlist && (
+                          <>
+                            <hr className="my-1 border-gray-200 dark:border-gray-700" />
+                            <button
+                              onClick={removeFromWatchlist}
+                              className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                              Remove from Watchlist
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Add to Favorites Button */}
                 <button
@@ -674,6 +877,7 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
                                 )}
                               </div>
                             ))}
+
                           </div>
                         </div>
                         {tvShow.credits.cast.length > 30 && (
@@ -1249,6 +1453,78 @@ export default function TvShowDetails({ params }: TvShowPageProps) {
 
             <div className="mt-4 text-center text-white">
               <h3 className="text-xl font-bold">{tvShow.name} - Official Trailer</h3>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Progress Dialog */}
+      {showProgressDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+          {/* Blurred background overlay */}
+          <div className="absolute inset-0 backdrop-blur-md bg-black/40" onClick={() => setShowProgressDialog(false)}></div>
+          
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md z-10 p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Update Watching Progress</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Track your progress for {tvShow.name}
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Current Season
+                </label>
+                <div className="flex items-center">
+                  <input 
+                    type="number" 
+                    min="1"
+                    max={tvShow.number_of_seasons} 
+                    value={currentSeason} 
+                    onChange={(e) => setCurrentSeason(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                  />
+                  <span className="ml-2 text-gray-500 dark:text-gray-400">
+                    of {tvShow.number_of_seasons}
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Current Episode
+                </label>
+                <input 
+                  type="number" 
+                  min="0"
+                  value={currentEpisode} 
+                  onChange={(e) => setCurrentEpisode(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white text-sm"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-8 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowProgressDialog(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={updateWatchProgress}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isUpdatingWatchlist}
+              >
+                {isUpdatingWatchlist ? (
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                    Updating...
+                  </div>
+                ) : (
+                  'Save Progress'
+                )}
+              </button>
             </div>
           </div>
         </div>

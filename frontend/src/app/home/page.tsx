@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUserCircle, FaSearch, FaPlay, FaChevronRight, FaChevronLeft, FaPlus, FaCalendarAlt, FaCog, FaStar, FaCheckCircle, FaRegClock, FaRegEye } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import { MovieWatchlistItem, TvShowWatchlistItem, WatchStatus } from '@/types';
+import { getMovieWatchlist, getTvShowWatchlist, updateTvShowWatchStatus, removeMovieFromWatchlist, removeTvShowFromWatchlist} from '@/utils/watchlistApi';
 
 // Define Movie interface based on the API response
 interface Movie {
@@ -35,6 +37,17 @@ interface TvShow {
   original_language: string;
   popularity: number;
   trailerUrl?: string;
+  // Add properties needed for the watchlist functionality
+  number_of_seasons?: number;
+  seasons?: {
+    id: number;
+    season_number: number;
+    episode_count: number;
+    air_date?: string;
+    name: string;
+    overview?: string;
+    poster_path?: string;
+  }[];
 }
 
 // Anime is essentially a TV show with specific properties
@@ -58,6 +71,156 @@ export default function Home() {
   const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
   const [showTrailer, setShowTrailer] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
+  
+  // Watchlist states
+  const [movieWatchlist, setMovieWatchlist] = useState<MovieWatchlistItem[]>([]);
+  const [tvShowWatchlist, setTvShowWatchlist] = useState<TvShowWatchlistItem[]>([]);
+  const [isLoadingMovieWatchlist, setIsLoadingMovieWatchlist] = useState(false);
+  const [isLoadingTvShowWatchlist, setIsLoadingTvShowWatchlist] = useState(false);
+  const [watchlistMovieDetails, setWatchlistMovieDetails] = useState<{[id: string]: Movie}>({});
+  const [watchlistTvShowDetails, setWatchlistTvShowDetails] = useState<{[id: string]: TvShow}>({});
+    // Episode progress tracking states
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [editingTvShowItem, setEditingTvShowItem] = useState<TvShowWatchlistItem | null>(null);
+  const [currentSeasonInput, setCurrentSeasonInput] = useState<number>(1);
+  const [currentEpisodeInput, setCurrentEpisodeInput] = useState<number>(0);
+  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [currentTvShowDetails, setCurrentTvShowDetails] = useState<any>(null);  // --- Subtle remove button, only on hover, for all watchlist sections ---
+  // Wrap each card (movie or tv) in a group and use group-hover to show the cross
+  const [openSeasonDropdown, setOpenSeasonDropdown] = useState<string|null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{top: number, left: number, width: number}>({
+    top: 0,
+    left: 0,
+    width: 0
+  });
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Function to fetch movie details for watchlist items
+  const fetchWatchlistMovieDetails = async (watchlistItems: MovieWatchlistItem[]) => {
+    const movieDetails: {[id: string]: Movie} = {};
+    
+    for (const item of watchlistItems) {
+      try {
+        const response = await fetch(`/api/catalog/movies/${item.movieId}`);
+        if (response.ok) {
+          const data = await response.json();
+          movieDetails[item.movieId] = data;
+        }
+      } catch (error) {
+        console.error(`Error fetching details for movie ${item.movieId}:`, error);
+      }
+    }
+    
+    setWatchlistMovieDetails(movieDetails);
+  };
+    // Function to fetch TV show details for watchlist items
+  const fetchWatchlistTvShowDetails = async (watchlistItems: TvShowWatchlistItem[]) => {
+    const tvShowDetails: {[id: string]: TvShow} = {};
+    
+    for (const item of watchlistItems) {
+      try {
+        const response = await fetch(`/api/catalog/tvshows/${item.tvShowId}`);
+        if (response.ok) {
+          const data = await response.json();
+          tvShowDetails[item.tvShowId] = data;
+        }
+      } catch (error) {
+        console.error(`Error fetching details for TV show ${item.tvShowId}:`, error);
+      }
+    }
+    
+    setWatchlistTvShowDetails(tvShowDetails);
+  };
+    // Handle episode progress increment
+  const incrementEpisode = async (item: TvShowWatchlistItem, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!user || isGuest) return;
+    
+    try {
+      const updatedEpisode = (item.currentEpisode || 0) + 1;
+      await updateTvShowWatchStatus(
+        user.username, 
+        item.tvShowId, 
+        item.status,
+        item.currentSeason,
+        updatedEpisode
+      );
+      
+      // Update the local state
+      setTvShowWatchlist(prev => prev.map(show => 
+        show.id === item.id 
+          ? {...show, currentEpisode: updatedEpisode}
+          : show
+      ));
+    } catch (error) {
+      console.error('Error updating episode progress:', error);
+    }
+  };
+    // Handle season selection
+  const handleSeasonChange = async (
+    item: TvShowWatchlistItem, 
+    season: number,
+    event: React.MouseEvent
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!user || isGuest) return;
+    
+    try {
+      await updateTvShowWatchStatus(
+        user.username, 
+        item.tvShowId, 
+        item.status,
+        season,
+        1  // Reset episode to 1 when changing season
+      );
+      
+      // Update the local state
+      setTvShowWatchlist(prev => prev.map(show => 
+        show.id === item.id 
+          ? {...show, currentSeason: season, currentEpisode: 1}
+          : show
+      ));
+    } catch (error) {
+      console.error('Error updating season:', error);
+    }
+  };
+  
+  // Fetch both movie and TV show watchlists
+  const fetchUserWatchlists = async () => {
+    if (!user || isGuest) return;
+    
+    // Fetch movie watchlist
+    setIsLoadingMovieWatchlist(true);
+    try {
+      const movieList = await getMovieWatchlist(user.username);
+      setMovieWatchlist(movieList);
+      
+      // Fetch details for each movie in watchlist
+      fetchWatchlistMovieDetails(movieList);
+    } catch (error) {
+      console.error('Error fetching movie watchlist:', error);
+    } finally {
+      setIsLoadingMovieWatchlist(false);
+    }
+    
+    // Fetch TV show watchlist
+    setIsLoadingTvShowWatchlist(true);
+    try {
+      const tvShowList = await getTvShowWatchlist(user.username);
+      setTvShowWatchlist(tvShowList);
+      
+      // Fetch details for each TV show in watchlist
+      fetchWatchlistTvShowDetails(tvShowList);
+    } catch (error) {
+      console.error('Error fetching TV show watchlist:', error);
+    } finally {
+      setIsLoadingTvShowWatchlist(false);
+    }
+  };
 
   // Set active tab based on URL param
   useEffect(() => {
@@ -67,6 +230,13 @@ export default function Home() {
       setActiveTab('home');
     }
   }, [tabParam]);
+
+  // Fetch watchlists automatically when the watchlist tab is selected
+  useEffect(() => {
+    if (activeTab === 'watchlist' && user && !isGuest) {
+      fetchUserWatchlists();
+    }
+  }, [activeTab, user, isGuest]);
 
   // Ref for the dropdown menu and button
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -828,57 +998,494 @@ export default function Home() {
                   </section>
                 </div>
               </>
-            )}
-
-            {/* Watchlist Tab Content */}
+            )}            {/* Watchlist Tab Content */}
             {activeTab === 'watchlist' && (
               <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Watchlist</h2>
-
-                  {/* Categories */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {['Currently Watching', 'Plan to Watch', 'Completed'].map((category) => (
-                      <div
-                        key={category}
-                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                      >
-                        <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                          <h3 className="font-semibold text-lg text-gray-800 dark:text-white">{category}</h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {category === 'Currently Watching'
-                              ? 'Continue where you left off'
-                              : category === 'Plan to Watch'
-                              ? 'Your future entertainment'
-                              : 'Everything you have watched'}
-                          </p>
-                        </div>
-                        <div className="p-5">
-                          {/* Placeholder for empty state */}
-                          <div className="py-8 flex flex-col items-center text-center">
-                            <div className="h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-4">
-                              {category === 'Currently Watching' && <FaRegEye className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
-                              {category === 'Plan to Watch' && <FaRegClock className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
-                              {category === 'Completed' && <FaCheckCircle className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />}
-                            </div>
-                            <p className="text-gray-600 dark:text-gray-300">No items in this category yet</p>
-                            <button className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
-                              Add content
-                            </button>
-                          </div>
-                        </div>
+                <div className="space-y-8">                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Watchlist</h2>
+                    {(isLoadingMovieWatchlist || isLoadingTvShowWatchlist) && (
+                      <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-indigo-600 dark:border-indigo-400"></div>
+                        <span>Loading watchlist...</span>
                       </div>
-                    ))}
+                    )}
                   </div>
 
-                  {/* Recent activity - placeholder */}
-                  <div className="mt-8">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Recent Activity</h2>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Your recent activity will appear here as you use CineTracks. Start by adding movies and shows to your
-                      watchlist!
-                    </p>
-                  </div>
+                  {isGuest && (
+                    <div className="bg-amber-100 dark:bg-amber-900/30 border-l-4 border-amber-500 p-4 rounded-md">
+                      <p className="text-amber-800 dark:text-amber-300">
+                        <span className="font-bold">Note:</span> Guest accounts cannot save watchlists permanently. Create an account to save your watchlist data.
+                      </p>
+                      <Link href="/register" className="mt-2 inline-block text-amber-800 dark:text-amber-300 font-medium hover:underline">
+                        Create Account →
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Currently Watching Section */}
+                  <section>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <FaRegEye className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                        Currently Watching
+                      </h3>
+                    </div>
+
+                    {(isLoadingMovieWatchlist || isLoadingTvShowWatchlist) ? (
+                      <div className="flex justify-center py-6">
+                        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">                          {/* TV shows currently watching */}
+                          {tvShowWatchlist
+                            .filter(item => item.status === WatchStatus.CURRENTLY_WATCHING)
+                            .map(item => {
+                              const tvShow = watchlistTvShowDetails[item.tvShowId];
+                              const numSeasons = tvShow?.number_of_seasons || 1;
+                              const currentSeasonIdx = (item.currentSeason || 1) - 1;
+                              const episodeCount = tvShow?.seasons?.[currentSeasonIdx]?.episode_count || 1;
+                              return tvShow ? (
+                                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group">
+                                  <button
+                                    className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
+                                    title="Remove from Watchlist"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!user || isGuest) return;
+                                      try {
+                                        await removeTvShowFromWatchlist(user.username, item.tvShowId);
+                                        setTvShowWatchlist(prev => prev.filter(show => show.id !== item.id));
+                                      } catch (err) {
+                                        alert('Failed to remove from watchlist');
+                                      }
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <div className="relative">
+                                    <Link href={`/tvshow/${item.tvShowId}`}>
+                                      <div className="relative aspect-video w-full bg-gray-200 dark:bg-gray-700">
+                                        {tvShow.backdrop_path ? (
+                                          <Image
+                                            src={`https://image.tmdb.org/t/p/w500${tvShow.backdrop_path}`}
+                                            alt={tvShow.name}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        ) : (
+                                          <div className="absolute inset-0 flex items-center justify-center">
+                                            <FaTv className="h-12 w-12 text-gray-400" />
+                                          </div>
+                                        )}
+                                        <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded">
+                                          {tvShow.genre_ids?.includes(16) ? 'Anime' : 'TV Show'}
+                                        </div>
+                                      </div>
+                                    </Link>
+                                  </div>
+                                  <div className="p-4">
+                                    <Link href={`/tvshow/${item.tvShowId}`}>
+                                      <h4 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-1">{tvShow.name}</h4>
+                                    </Link>
+                                    <div className="flex items-center justify-between text-sm mb-3">
+                                      <div className="flex items-center">
+                                        <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                          S{item.currentSeason} E{item.currentEpisode}
+                                        </span>
+                                      </div>
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        {tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : ''}
+                                      </span>
+                                    </div>                                    <div className="flex gap-2 mt-1">
+                                      <div className="flex-1 relative">                                        <button 
+                                          className="w-full py-1.5 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700/50 dark:hover:bg-gray-700/70 text-gray-700 dark:text-gray-300 text-sm font-medium rounded transition-colors cursor-pointer flex justify-between items-center"
+                                          onClick={e => { 
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            // Store button position before showing dropdown
+                                            if (openSeasonDropdown !== `${item.id}`) {
+                                              const buttonRect = e.currentTarget.getBoundingClientRect();
+                                              setDropdownPosition({
+                                                top: buttonRect.bottom,
+                                                left: buttonRect.left,
+                                                width: buttonRect.width
+                                              });
+                                            }
+                                            setOpenSeasonDropdown(openSeasonDropdown === `${item.id}` ? null : `${item.id}`);
+                                          }}
+                                        >
+                                          <span>Season {item.currentSeason}</span>
+                                          <svg className="w-4 h-4 ml-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                          </svg>
+                                        </button>                                        {openSeasonDropdown === `${item.id}` && (
+                                          <div 
+                                            ref={dropdownRef} 
+                                            className="fixed mt-1 max-h-60 overflow-y-auto bg-white dark:bg-gray-900 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 z-[1000] text-center"
+                                            style={{
+                                              width: `${dropdownPosition.width}px`,
+                                              position: 'fixed',
+                                              top: `${dropdownPosition.top}px`, 
+                                              left: `${dropdownPosition.left}px`
+                                            }}
+                                          >
+                                            {Array.from({ length: numSeasons }, (_, idx) => (
+                                              <button
+                                                key={idx + 1}
+                                                onClick={e => { 
+                                                  handleSeasonChange(item, idx + 1, e); 
+                                                  setOpenSeasonDropdown(null); 
+                                                }}
+                                                className={`w-full px-4 py-2 text-sm hover:bg-indigo-100 dark:hover:bg-indigo-800 transition-colors ${
+                                                  item.currentSeason === (idx + 1) ? 
+                                                  'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold' : 
+                                                  'text-gray-700 dark:text-gray-300'
+                                                }`}
+                                              >
+                                                Season {idx + 1}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                      {/* Episode controls */}
+                                      <div className="flex-1 flex items-center gap-1">
+                                        <button
+                                          className="py-1.5 px-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-l hover:bg-gray-300 dark:hover:bg-gray-600"
+                                          onClick={async (e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (!user || isGuest) return;
+                                            const newEp = Math.max(1, (item.currentEpisode ?? 1) - 1);
+                                            await updateTvShowWatchStatus(user.username, item.tvShowId, item.status, item.currentSeason, newEp);
+                                            setTvShowWatchlist(prev => prev.map(show => show.id === item.id ? { ...show, currentEpisode: newEp } : show));
+                                          }}
+                                          disabled={(item.currentEpisode ?? 1) <= 1}
+                                        >-</button>
+                                        <span className="px-2 text-sm">E{item.currentEpisode ?? 1}</span>
+                                        <button
+                                          className="py-1.5 px-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-r hover:bg-gray-300 dark:hover:bg-gray-600"
+                                          onClick={e => incrementEpisode(item, e)}
+                                          disabled={(item.currentEpisode ?? 1) >= episodeCount}
+                                        >+</button>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      Season {item.currentSeason} has {episodeCount} episodes.
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                            
+                          {/* Movies currently watching */}
+                          {movieWatchlist
+                            .filter(item => item.status === WatchStatus.CURRENTLY_WATCHING)
+                            .map(item => {
+                              const movie = watchlistMovieDetails[item.movieId];
+                              return movie ? (
+                                <div key={item.id} className="relative">
+                                  <button
+                                    className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
+                                    title="Remove from Watchlist"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!user || isGuest) return;
+                                      try {
+                                        await removeMovieFromWatchlist(user.username, item.movieId);
+                                        setMovieWatchlist(prev => prev.filter(m => m.id !== item.id));
+                                      } catch (err) {
+                                        alert('Failed to remove from watchlist');
+                                      }
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <Link href={`/movie/${item.movieId}`}>
+                                    <div className="relative aspect-video w-full bg-gray-200 dark:bg-gray-700">
+                                      {movie.backdrop_path ? (
+                                        <Image
+                                          src={`https://image.tmdb.org/t/p/w500${movie.backdrop_path}`}
+                                          alt={movie.title}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <FaFilm className="h-12 w-12 text-gray-400" />
+                                        </div>
+                                      )}
+                                      <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
+                                        Movie
+                                      </div>
+                                    </div>
+                                  </Link>
+                                  <div className="p-4">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-1">{movie.title}</h4>
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                        In Progress
+                                      </span>
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        {movie.release_date ? new Date(movie.release_date).getFullYear() : ''}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                        </div>
+                        
+                        {/* Empty state */}
+                        {tvShowWatchlist.filter(item => item.status === WatchStatus.CURRENTLY_WATCHING).length === 0 && 
+                         movieWatchlist.filter(item => item.status === WatchStatus.CURRENTLY_WATCHING).length === 0 && (
+                          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center">
+                            <div className="mx-auto h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-4">
+                              <FaRegEye className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Nothing currently watching</h4>
+                            <p className="text-gray-600 dark:text-gray-400 mb-6">
+                              Start watching something by browsing movies and TV shows.
+                            </p>
+                            <div className="flex justify-center gap-3">
+                              <Link href="/home?tab=movies">
+                                <span className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                                  Browse Movies
+                                </span>
+                              </Link>
+                              <Link href="/home?tab=tv">
+                                <span className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                                  Browse TV Shows
+                                </span>
+                              </Link>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </section>
+
+                  {/* Plan to Watch Section */}
+                  <section>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <FaRegClock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                        Plan to Watch
+                      </h3>
+                    </div>
+
+                    {(isLoadingMovieWatchlist || isLoadingTvShowWatchlist) ? (
+                      <div className="flex justify-center py-6">
+                        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                          {/* TV shows plan to watch */}
+                          {tvShowWatchlist
+                            .filter(item => item.status === WatchStatus.PLAN_TO_WATCH)
+                            .map(item => {
+                              const tvShow = watchlistTvShowDetails[item.tvShowId];
+                              return tvShow ? (
+                                <Link key={item.id} href={`/tvshow/${item.tvShowId}`}>
+                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
+                                      {tvShow.poster_path ? (
+                                        <Image
+                                          src={`https://image.tmdb.org/t/p/w500${tvShow.poster_path}`}
+                                          alt={tvShow.name}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <FaTv className="h-12 w-12 text-gray-400" />
+                                        </div>
+                                      )}
+                                      <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded">
+                                        TV
+                                      </div>
+                                    </div>
+                                    <div className="p-3">
+                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{tvShow.name}</h4>
+                                    </div>
+                                  </div>
+                                </Link>
+                              ) : null;
+                            })}
+                            
+                          {/* Movies plan to watch */}
+                          {movieWatchlist
+                            .filter(item => item.status === WatchStatus.PLAN_TO_WATCH)
+                            .map(item => {
+                              const movie = watchlistMovieDetails[item.movieId];
+                              return movie ? (
+                                <Link key={item.id} href={`/movie/${item.movieId}`}>
+                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
+                                      {movie.poster_path ? (
+                                        <Image
+                                          src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                                          alt={movie.title}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <FaFilm className="h-12 w-12 text-gray-400" />
+                                        </div>
+                                      )}
+                                      <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
+                                        Movie
+                                      </div>
+                                    </div>
+                                    <div className="p-3">
+                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{movie.title}</h4>
+                                    </div>
+                                  </div>
+                                </Link>
+                              ) : null;
+                            })}
+                        </div>
+                        
+                        {/* Empty state */}
+                        {tvShowWatchlist.filter(item => item.status === WatchStatus.PLAN_TO_WATCH).length === 0 && 
+                         movieWatchlist.filter(item => item.status === WatchStatus.PLAN_TO_WATCH).length === 0 && (
+                          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center">
+                            <div className="mx-auto h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-4">
+                              <FaRegClock className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Your watch list is empty</h4>
+                            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                              Start building your watchlist by adding movies and TV shows you want to watch in the future.
+                            </p>
+                            <div className="flex justify-center gap-3">
+                              <Link href="/home">
+                                <span className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors">
+                                  Explore Content
+                                </span>
+                              </Link>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </section>
+
+                  {/* Completed Section */}
+                  <section>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                        <FaCheckCircle className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                        Completed
+                      </h3>
+                    </div>
+
+                    {(isLoadingMovieWatchlist || isLoadingTvShowWatchlist) ? (
+                      <div className="flex justify-center py-6">
+                        <div className="h-8 w-8 animate-spin rounded-full border-t-2 border-b-2 border-indigo-500"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                          {/* TV shows completed */}
+                          {tvShowWatchlist
+                            .filter(item => item.status === WatchStatus.COMPLETED)
+                            .map(item => {
+                              const tvShow = watchlistTvShowDetails[item.tvShowId];
+                              return tvShow ? (
+                                <Link key={item.id} href={`/tvshow/${item.tvShowId}`}>
+                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
+                                      {tvShow.poster_path ? (
+                                        <Image
+                                          src={`https://image.tmdb.org/t/p/w500${tvShow.poster_path}`}
+                                          alt={tvShow.name}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <FaTv className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                                        </div>
+                                      )}
+                                      <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded">
+                                        TV
+                                      </div>
+                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                        <div className="bg-green-600 rounded-full p-2">
+                                          <FaCheckCircle className="h-8 w-8 text-white" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="p-3">
+                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{tvShow.name}</h4>
+                                    </div>
+                                  </div>
+                                </Link>
+                              ) : null;
+                            })}
+                            
+                          {/* Movies completed */}
+                          {movieWatchlist
+                            .filter(item => item.status === WatchStatus.COMPLETED)
+                            .map(item => {
+                              const movie = watchlistMovieDetails[item.movieId];
+                              return movie ? (
+                                <Link key={item.id} href={`/movie/${item.movieId}`}>
+                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
+                                      {movie.poster_path ? (
+                                        <Image
+                                          src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+                                          alt={movie.title}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                                        </div>
+                                      )}
+                                      <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
+                                        Movie
+                                      </div>
+                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                        <div className="bg-green-600 rounded-full p-2">
+                                          <FaCheckCircle className="h-8 w-8 text-white" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="p-3">
+                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{movie.title}</h4>
+                                    </div>
+                                  </div>
+                                </Link>
+                              ) : null;
+                            })}
+                        </div>
+                        
+                        {/* Empty state */}
+                        {tvShowWatchlist.filter(item => item.status === WatchStatus.COMPLETED).length === 0 && 
+                         movieWatchlist.filter(item => item.status === WatchStatus.COMPLETED).length === 0 && (
+                          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center">
+                            <div className="mx-auto h-16 w-16 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-4">
+                              <FaCheckCircle className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Nothing completed yet</h4>
+                            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                              Mark movies and TV shows as completed to track what you've watched.
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </section>
                 </div>
               </div>
             )}
@@ -957,6 +1564,9 @@ export default function Home() {
                     This is a placeholder for the calendar feature. More functionality will be added in future updates.
                   </p>
                   <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    Add to Calendar
+                  </button>
+                  <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
                     View Calendar
                   </button>
                 </div>
@@ -967,13 +1577,13 @@ export default function Home() {
       </div>      {/* Trailer Modal with Blurred Background */}
       {showTrailer && trendingItems[currentFeaturedIndex]?.trailerUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
-          {/* Blurred background instead of black */}
+          {/* Blurred background overlay */}
           <div className="absolute inset-0 backdrop-blur-md bg-black/40" onClick={closeTrailer}></div>
           <div className="relative w-full max-w-5xl z-10">
             <button
               onClick={closeTrailer}
               className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2"
-              aria-label="Close trailer"
+                           aria-label="Close trailer"
             >
               <svg
                 className="w-8 h-8"
@@ -999,6 +1609,166 @@ export default function Home() {
               <h3 className="text-xl font-bold">
                 {'title' in trendingItems[currentFeaturedIndex] ? trendingItems[currentFeaturedIndex].title : trendingItems[currentFeaturedIndex].name} - Official Trailer
               </h3>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TV Show Progress Update Dialog */}
+      {showProgressDialog && editingTvShowItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+          {/* Blurred background overlay */}
+          <div className="absolute inset-0 backdrop-blur-md bg-black/40" onClick={() => setShowProgressDialog(false)}></div>
+          
+          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md z-10 p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Update Watching Progress</h3>
+            
+            {editingTvShowItem && watchlistTvShowDetails[editingTvShowItem.tvShowId] && (
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                {watchlistTvShowDetails[editingTvShowItem.tvShowId].name}
+              </p>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Current Season
+                </label>
+                <div className="relative">
+                  <select 
+                    value={currentSeasonInput} 
+                    onChange={(e) => {
+                      const season = parseInt(e.target.value);
+                      setCurrentSeasonInput(season);
+                      // Reset episode to 0 when changing seasons to avoid invalid episode numbers
+                      setCurrentEpisodeInput(0);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm appearance-none"
+                  >                    {editingTvShowItem && watchlistTvShowDetails[editingTvShowItem.tvShowId] && 
+                     watchlistTvShowDetails[editingTvShowItem.tvShowId].number_of_seasons && 
+                     Array.from({ length: watchlistTvShowDetails[editingTvShowItem.tvShowId].number_of_seasons as number }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Season {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Current Episode
+                </label>
+                <div className="flex items-center">
+                  <button 
+                    onClick={() => setCurrentEpisodeInput(prev => Math.max(0, prev - 1))}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="number"                    
+                    min="0"                    
+                    max={editingTvShowItem && 
+                         watchlistTvShowDetails[editingTvShowItem.tvShowId] && 
+                         watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons && 
+                         watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons?.[currentSeasonInput - 1] ? 
+                         watchlistTvShowDetails[editingTvShowItem.tvShowId]?.seasons?.[currentSeasonInput - 1]?.episode_count ?? 999 : 
+                         999}
+                    value={currentEpisodeInput}                    onChange={(e) => {
+                      const newValue = parseInt(e.target.value);
+                      if (isNaN(newValue)) {
+                        setCurrentEpisodeInput(0);
+                        return;
+                      }
+                      const maxEpisodes = 
+                        editingTvShowItem && 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId] && 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons && 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons?.[currentSeasonInput - 1] ? 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId]?.seasons?.[currentSeasonInput - 1]?.episode_count ?? 999 : 
+                        999;
+                      setCurrentEpisodeInput(Math.max(0, Math.min(newValue, maxEpisodes)));
+                    }}
+                    className="w-full px-3 py-2 border-y border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm text-center"
+                  />                  <button 
+                    onClick={() => {
+                      const maxEpisodes = 
+                        editingTvShowItem && 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId] && 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons && 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons?.[currentSeasonInput - 1] ? 
+                        watchlistTvShowDetails[editingTvShowItem.tvShowId]?.seasons?.[currentSeasonInput - 1]?.episode_count ?? 999 : 
+                        999;
+                      setCurrentEpisodeInput(prev => Math.min(maxEpisodes, prev + 1));
+                    }}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                  >
+                    +
+                  </button>
+                </div>                {editingTvShowItem && 
+                 watchlistTvShowDetails[editingTvShowItem.tvShowId] && 
+                 watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons && 
+                 watchlistTvShowDetails[editingTvShowItem.tvShowId].seasons?.[currentSeasonInput - 1] && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Total episodes in season {currentSeasonInput}: {watchlistTvShowDetails[editingTvShowItem.tvShowId]?.seasons?.[currentSeasonInput - 1]?.episode_count ?? 'Unknown'}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowProgressDialog(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!user || isGuest || !editingTvShowItem) return;
+                  
+                  setIsUpdatingProgress(true);
+                  try {
+                    await updateTvShowWatchStatus(
+                      user.username,
+                      editingTvShowItem.tvShowId,
+                      editingTvShowItem.status,
+                      currentSeasonInput,
+                      currentEpisodeInput
+                    );
+                    
+                    // Update the local state
+                    setTvShowWatchlist(prev => prev.map(show => 
+                      show.id === editingTvShowItem.id 
+                        ? {...show, currentSeason: currentSeasonInput, currentEpisode: currentEpisodeInput}
+                        : show
+                    ));
+                    
+                    setShowProgressDialog(false);
+                  } catch (error) {
+                    console.error('Error updating progress:', error);
+                  } finally {
+                    setIsUpdatingProgress(false);
+                  }
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isUpdatingProgress}
+              >
+                {isUpdatingProgress ? (
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                    Updating...
+                  </div>
+                ) : (
+                  'Save Progress'
+                )}
+              </button>
             </div>
           </div>
         </div>
