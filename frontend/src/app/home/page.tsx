@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUserCircle, FaSearch, FaPlay, FaChevronRight, FaChevronLeft, FaPlus, FaCalendarAlt, FaCog, FaStar, FaCheckCircle, FaRegClock, FaRegEye, FaTimes } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { MovieWatchlistItem, TvShowWatchlistItem, WatchStatus } from '@/types';
-import { getMovieWatchlist, getTvShowWatchlist, updateTvShowWatchStatus, removeMovieFromWatchlist, removeTvShowFromWatchlist} from '@/utils/watchlistApi';
+import { getMovieWatchlist, getTvShowWatchlist, updateTvShowWatchStatus, removeMovieFromWatchlist, removeTvShowFromWatchlist, updateMovieWatchStatus } from '@/utils/watchlistApi';
 import debounce from 'lodash/debounce';
 
 // Define Movie interface based on the API response
@@ -103,6 +103,11 @@ export default function Home() {
     width: 0
   });
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  // Ref for the dropdown menu and button
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  // Add a ref map for season buttons
+  const seasonButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
   // Function to fetch movie details for watchlist items
   const fetchWatchlistMovieDetails = async (watchlistItems: MovieWatchlistItem[]) => {
@@ -247,10 +252,6 @@ export default function Home() {
     }
   }, [activeTab, user, isGuest]);
 
-  // Ref for the dropdown menu and button
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
-
   // Toggle profile menu dropdown
   const toggleProfileMenu = () => {
     setShowProfileMenu(!showProfileMenu);
@@ -275,6 +276,27 @@ export default function Home() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showProfileMenu]);
+
+  // Close season dropdown when clicking outside
+  useEffect(() => {
+    if (!openSeasonDropdown) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const dropdownNode = dropdownRef.current;
+      const buttonNode = seasonButtonRefs.current[openSeasonDropdown];
+      if (
+        dropdownNode &&
+        !dropdownNode.contains(event.target as Node) &&
+        buttonNode &&
+        !buttonNode.contains(event.target as Node)
+      ) {
+        setOpenSeasonDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openSeasonDropdown]);
 
   // Protect this page - redirect if not authenticated
   useEffect(() => {
@@ -1387,7 +1409,7 @@ export default function Home() {
                             .map(item => {
                               const movie = watchlistMovieDetails[item.movieId];
                               return movie ? (
-                                <div key={item.id} className="relative">
+                                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group flex flex-col">
                                   <button
                                     className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
                                     title="Remove from Watchlist"
@@ -1417,7 +1439,7 @@ export default function Home() {
                                         />
                                       ) : (
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                          <FaFilm className="h-12 w-12 text-gray-400" />
+                                          <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                                         </div>
                                       )}
                                       <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
@@ -1425,16 +1447,32 @@ export default function Home() {
                                       </div>
                                     </div>
                                   </Link>
-                                  <div className="p-4">
-                                    <h4 className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-1">{movie.title}</h4>
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                                        In Progress
-                                      </span>
+                                  <div className="p-4 flex-1 flex flex-col justify-between">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-1">{movie.title}</h4>
+                                    <div className="flex items-center justify-between text-sm mb-2">
                                       <span className="text-gray-500 dark:text-gray-400">
                                         {movie.release_date ? new Date(movie.release_date).getFullYear() : ''}
                                       </span>
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                        {movie.vote_average ? `${movie.vote_average.toFixed(1)}★` : ''}
+                                      </span>
                                     </div>
+                                    <button
+                                      className="w-full mt-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
+                                      onClick={async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (!user || isGuest) return;
+                                        try {
+                                          await updateMovieWatchStatus(user.username, item.movieId, WatchStatus.COMPLETED);
+                                          setMovieWatchlist(prev => prev.map(m => m.id === item.id ? { ...m, status: WatchStatus.COMPLETED } : m));
+                                        } catch (err) {
+                                          alert('Failed to mark as completed');
+                                        }
+                                      }}
+                                    >
+                                      Mark as Completed
+                                    </button>
                                   </div>
                                 </div>
                               ) : null;
@@ -1492,8 +1530,26 @@ export default function Home() {
                             .map(item => {
                               const tvShow = watchlistTvShowDetails[item.tvShowId];
                               return tvShow ? (
-                                <Link key={item.id} href={`/tvshow/${item.tvShowId}`}>
-                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group">
+                                  <button
+                                    className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
+                                    title="Remove from Watchlist"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!user || isGuest) return;
+                                      try {
+                                        await removeTvShowFromWatchlist(user.username, item.tvShowId);
+                                        setTvShowWatchlist(prev => prev.filter(show => show.id !== item.id));
+                                      } catch (err) {
+                                        alert('Failed to remove from watchlist');
+                                      }
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <Link href={`/tvshow/${item.tvShowId}`}>
                                     <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
                                       {tvShow.poster_path ? (
                                         <Image
@@ -1504,18 +1560,26 @@ export default function Home() {
                                         />
                                       ) : (
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                          <FaTv className="h-12 w-12 text-gray-400" />
+                                          <FaTv className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                                         </div>
                                       )}
                                       <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded">
                                         TV
                                       </div>
                                     </div>
-                                    <div className="p-3">
-                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{tvShow.name}</h4>
+                                  </Link>
+                                  <div className="p-4">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-1">{tvShow.name}</h4>
+                                    <div className="flex items-center justify-between text-sm mb-3">
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        {tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : ''}
+                                      </span>
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                        {tvShow.vote_average ? `${tvShow.vote_average.toFixed(1)}★` : ''}
+                                      </span>
                                     </div>
                                   </div>
-                                </Link>
+                                </div>
                               ) : null;
                             })}
                             
@@ -1525,8 +1589,26 @@ export default function Home() {
                             .map(item => {
                               const movie = watchlistMovieDetails[item.movieId];
                               return movie ? (
-                                <Link key={item.id} href={`/movie/${item.movieId}`}>
-                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group">
+                                  <button
+                                    className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
+                                    title="Remove from Watchlist"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!user || isGuest) return;
+                                      try {
+                                        await removeMovieFromWatchlist(user.username, item.movieId);
+                                        setMovieWatchlist(prev => prev.filter(m => m.id !== item.id));
+                                      } catch (err) {
+                                        alert('Failed to remove from watchlist');
+                                      }
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <Link href={`/movie/${item.movieId}`}>
                                     <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
                                       {movie.poster_path ? (
                                         <Image
@@ -1537,18 +1619,26 @@ export default function Home() {
                                         />
                                       ) : (
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                          <FaFilm className="h-12 w-12 text-gray-400" />
+                                          <FaFilm className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                                         </div>
                                       )}
                                       <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
                                         Movie
                                       </div>
                                     </div>
-                                    <div className="p-3">
-                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{movie.title}</h4>
+                                  </Link>
+                                  <div className="p-4">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-1">{movie.title}</h4>
+                                    <div className="flex items-center justify-between text-sm mb-3">
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        {movie.release_date ? new Date(movie.release_date).getFullYear() : ''}
+                                      </span>
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                        {movie.vote_average ? `${movie.vote_average.toFixed(1)}★` : ''}
+                                      </span>
                                     </div>
                                   </div>
-                                </Link>
+                                </div>
                               ) : null;
                             })}
                         </div>
@@ -1599,8 +1689,26 @@ export default function Home() {
                             .map(item => {
                               const tvShow = watchlistTvShowDetails[item.tvShowId];
                               return tvShow ? (
-                                <Link key={item.id} href={`/tvshow/${item.tvShowId}`}>
-                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group">
+                                  <button
+                                    className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
+                                    title="Remove from Watchlist"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!user || isGuest) return;
+                                      try {
+                                        await removeTvShowFromWatchlist(user.username, item.tvShowId);
+                                        setTvShowWatchlist(prev => prev.filter(show => show.id !== item.id));
+                                      } catch (err) {
+                                        alert('Failed to remove from watchlist');
+                                      }
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <Link href={`/tvshow/${item.tvShowId}`}>
                                     <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
                                       {tvShow.poster_path ? (
                                         <Image
@@ -1617,17 +1725,20 @@ export default function Home() {
                                       <div className="absolute top-2 right-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded">
                                         TV
                                       </div>
-                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                        <div className="bg-green-600 rounded-full p-2">
-                                          <FaCheckCircle className="h-8 w-8 text-white" />
-                                        </div>
-                                      </div>
                                     </div>
-                                    <div className="p-3">
-                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{tvShow.name}</h4>
+                                  </Link>
+                                  <div className="p-4">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-1">{tvShow.name}</h4>
+                                    <div className="flex items-center justify-between text-sm mb-3">
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        {tvShow.first_air_date ? new Date(tvShow.first_air_date).getFullYear() : ''}
+                                      </span>
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                        {tvShow.vote_average ? `${tvShow.vote_average.toFixed(1)}★` : ''}
+                                      </span>
                                     </div>
                                   </div>
-                                </Link>
+                                </div>
                               ) : null;
                             })}
                             
@@ -1637,8 +1748,26 @@ export default function Home() {
                             .map(item => {
                               const movie = watchlistMovieDetails[item.movieId];
                               return movie ? (
-                                <Link key={item.id} href={`/movie/${item.movieId}`}>
-                                  <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group">
+                                  <button
+                                    className="absolute top-2 left-2 z-20 bg-red-500/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 focus:outline-none"
+                                    title="Remove from Watchlist"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (!user || isGuest) return;
+                                      try {
+                                        await removeMovieFromWatchlist(user.username, item.movieId);
+                                        setMovieWatchlist(prev => prev.filter(m => m.id !== item.id));
+                                      } catch (err) {
+                                        alert('Failed to remove from watchlist');
+                                      }
+                                    }}
+                                  >
+                                    <span className="sr-only">Remove</span>
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                  </button>
+                                  <Link href={`/movie/${item.movieId}`}>
                                     <div className="relative aspect-[2/3] w-full bg-gray-200 dark:bg-gray-700">
                                       {movie.poster_path ? (
                                         <Image
@@ -1655,17 +1784,20 @@ export default function Home() {
                                       <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
                                         Movie
                                       </div>
-                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                        <div className="bg-green-600 rounded-full p-2">
-                                          <FaCheckCircle className="h-8 w-8 text-white" />
-                                        </div>
-                                      </div>
                                     </div>
-                                    <div className="p-3">
-                                      <h4 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{movie.title}</h4>
+                                  </Link>
+                                  <div className="p-4">
+                                    <h4 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-1">{movie.title}</h4>
+                                    <div className="flex items-center justify-between text-sm mb-3">
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        {movie.release_date ? new Date(movie.release_date).getFullYear() : ''}
+                                      </span>
+                                      <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                                        {movie.vote_average ? `${movie.vote_average.toFixed(1)}★` : ''}
+                                      </span>
                                     </div>
                                   </div>
-                                </Link>
+                                </div>
                               ) : null;
                             })}
                         </div>
@@ -1907,7 +2039,7 @@ export default function Home() {
                         999;
                       setCurrentEpisodeInput(prev => Math.min(maxEpisodes, prev + 1));
                     }}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-r-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                   >
                     +
                   </button>
@@ -1976,3 +2108,4 @@ export default function Home() {
     </div>
   );
 }
+
