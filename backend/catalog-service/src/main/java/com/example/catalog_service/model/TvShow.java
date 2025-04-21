@@ -39,6 +39,11 @@ public class TvShow {
     // Added for trailer functionality
     private String trailerUrl;
     
+    // Add a contentType field to support SearchService
+    private String contentType;
+    public String getContentType() { return contentType; }
+    public void setContentType(String contentType) { this.contentType = contentType; }
+    
     // Getters and setters
     public Long getId() {
         return id;

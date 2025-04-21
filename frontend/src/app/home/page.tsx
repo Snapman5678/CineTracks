@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUserCircle, FaSearch, FaPlay, FaChevronRight, FaChevronLeft, FaPlus, FaCalendarAlt, FaCog, FaStar, FaCheckCircle, FaRegClock, FaRegEye } from 'react-icons/fa';
+import { FaFilm, FaTv, FaList, FaSignOutAlt, FaUserCircle, FaSearch, FaPlay, FaChevronRight, FaChevronLeft, FaPlus, FaCalendarAlt, FaCog, FaStar, FaCheckCircle, FaRegClock, FaRegEye, FaTimes } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { MovieWatchlistItem, TvShowWatchlistItem, WatchStatus } from '@/types';
 import { getMovieWatchlist, getTvShowWatchlist, updateTvShowWatchStatus, removeMovieFromWatchlist, removeTvShowFromWatchlist} from '@/utils/watchlistApi';
+import debounce from 'lodash/debounce';
 
 // Define Movie interface based on the API response
 interface Movie {
@@ -71,6 +72,14 @@ export default function Home() {
   const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
   const [showTrailer, setShowTrailer] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
+  
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
   
   // Watchlist states
   const [movieWatchlist, setMovieWatchlist] = useState<MovieWatchlistItem[]>([]);
@@ -456,6 +465,114 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/original${backdropPath}`;
   };
 
+  // Handle search function
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/catalog/search?query=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      // Combine all results and format them
+      const allResults: any[] = [];
+      
+      // Add movies to results
+      if (data.movies && Array.isArray(data.movies)) {
+        data.movies.forEach((movie: any) => {
+          allResults.push({
+            ...movie,
+            contentType: 'movie'
+          });
+        });
+      }
+      
+      // Add TV shows to results
+      if (data.tvShows && Array.isArray(data.tvShows)) {
+        data.tvShows.forEach((tvShow: any) => {
+          allResults.push({
+            ...tvShow,
+            contentType: 'tvshow'
+          });
+        });
+      }
+      
+      // Add anime to results
+      if (data.animeShows && Array.isArray(data.animeShows)) {
+        data.animeShows.forEach((anime: any) => {
+          allResults.push({
+            ...anime,
+            contentType: 'anime'
+          });
+        });
+      }
+      
+      // Sort by popularity or vote average
+      const sortedResults = allResults.sort((a, b) => b.vote_average - a.vote_average);
+      
+      // Limit to 8 results for better UI
+      setSearchResults(sortedResults.slice(0, 8));
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('Error searching:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search function to prevent too many API calls
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      handleSearch(query);
+    }, 500),
+    []
+  );
+
+  // Handle search input changes
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query);
+  };
+
+  // Navigate to content detail page
+  const navigateToContent = (result: any) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    
+    if (result.contentType === 'movie') {
+      router.push(`/movie/${result.id}`);
+    } else if (result.contentType === 'tvshow') {
+      router.push(`/tvshow/${result.id}`);
+    } else if (result.contentType === 'anime') {
+      router.push(`/tvshow/${result.id}?type=anime`);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchResultsRef.current &&
+        searchInputRef.current &&
+        !searchResultsRef.current.contains(event.target as Node) &&
+        !searchInputRef.current.contains(event.target as Node)
+      ) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       {/* Header */}
@@ -488,14 +605,93 @@ export default function Home() {
             </Link>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <div className="relative hidden md:block">
-              <input
-                type="text"
-                placeholder="Search movies & shows..."
-                className="w-64 py-2 pl-10 pr-4 rounded-lg bg-gray-100 dark:bg-gray-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm dark:text-white"
-              />
-              <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
+          <div className="flex items-center space-x-4">            <div className="relative hidden md:block">
+              <div className="relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search movies & shows..."
+                  className="w-64 py-2 pl-10 pr-4 rounded-lg bg-gray-100 dark:bg-gray-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm dark:text-white"
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
+                />
+                <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
+                {searchQuery && (
+                  <button 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setShowSearchResults(false);
+                    }}
+                    
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    <FaTimes size={14} />
+                  </button>
+                )}
+              </div>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div 
+                  ref={searchResultsRef}
+                  className="absolute mt-2 w-96 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border dark:border-gray-700 max-h-[80vh] overflow-y-auto"
+                >
+                  <div className="p-2 border-b dark:border-gray-700">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white flex items-center justify-between">
+                      Search Results
+                      {isSearching && (
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-indigo-600 dark:border-indigo-400"></span>
+                      )}
+                    </p>
+                  </div>
+                  {searchResults.map((result) => (
+                    <div 
+                      key={`${result.contentType}-${result.id}`}
+                      onClick={() => navigateToContent(result)}
+                      className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-3"
+                    >
+                      <div className="flex-shrink-0 h-12 w-8 relative">
+                        {result.poster_path ? (
+                          <Image
+                            src={getPosterUrl(result.poster_path)}
+                            alt={result.title || result.name}
+                            fill
+                            className="object-cover rounded"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded">
+                            <FaFilm className="text-gray-400 dark:text-gray-500" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
+                          {result.title || result.name}
+                        </p>
+                        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
+                          <span className={`px-1.5 py-0.5 rounded-sm text-white text-[10px] ${
+                            result.contentType === 'movie' ? 'bg-blue-600' : 
+                            result.contentType === 'tvshow' ? 'bg-green-600' : 
+                            'bg-purple-600'
+                          }`}>
+                            {result.contentType === 'movie' ? 'Movie' : 
+                             result.contentType === 'tvshow' ? 'TV Show' : 
+                             'Anime'}
+                          </span>
+                          <span>{result.vote_average.toFixed(1)}/10</span>
+                          <span>
+                            {result.release_date ? 
+                              new Date(result.release_date).getFullYear() :
+                              result.first_air_date ? 
+                              new Date(result.first_air_date).getFullYear() : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
             {/* Notification button */}
@@ -1494,7 +1690,7 @@ export default function Home() {
             {activeTab === 'movies' && (
               <div className="max-w-7xl mx-auto px-6 py-8">
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-6">
+<div className="h-24 w-24 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-6">
                     <FaFilm className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
@@ -1540,8 +1736,8 @@ export default function Home() {
                   <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
                     Your Ratings & Reviews
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-400 max-w-lg">
-                    This is a placeholder for the ratings feature. More functionality will be added in future updates.
+                  <p className="text-gray-600 dark:textgray-400 max-w-lg">
+                    This is a placeholder for theratings feature. More functionality will be added in future updates.
                   </p>
                   <button className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
                     Rate Content
