@@ -1,107 +1,201 @@
-# CineTracks
+# CineTracks <img src="https://img.shields.io/badge/Status-Active-brightgreen" alt="Status: Active">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<div align="center">
+  
+  <img src="docs/assets/Banner.png" alt="CineTracks Banner" width="800px">
+  
+  <!-- <p><i>Your ultimate entertainment companion for tracking movies, TV shows, and anime</i></p> -->
+  
+  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+  ![Version](https://img.shields.io/badge/Version-1.0.0-orange)
+  ![Made with Love](https://img.shields.io/badge/Made%20with-♥-ff69b4)
+  
+</div>
 
-CineTracks is a comprehensive entertainment tracking platform that allows users to manage movies, TV series, and anime in one centralized application. It provides a unified solution for maintaining watchlists across different content types with reliable data from trusted sources.
+## 📌 Overview
 
-## 🌟 Features
+**CineTracks** is a comprehensive entertainment tracking platform that brings together movies, TV series, and anime in one elegant application. Say goodbye to juggling multiple apps for different content types—CineTracks provides a unified solution with data from trusted sources, personalized lists, and smart recommendations.
 
-- **Unified Watchlist Management**: Track movies, TV series, and anime all in one place
-- **Personalized Categories**: Organize content into "Watched", "Currently Watching", and "Plan to Watch" lists
-- **Real-time Data Integration**: Fetch accurate information from trusted sources like TMDB
-- **User Ratings & Reviews**: Rate and review content you've watched
-- **Progress Tracking**: Keep track of your watching progress, including episodes for series
-- **Smart Recommendations**: Get personalized content suggestions based on your preferences
-- **Responsive Design**: Enjoy a seamless experience across desktop and mobile devices
-- **Secure Authentication**: Protect your account with robust user authentication
+<div align="center">
+  <table>
+    <tr>
+      <td><b>🔍 Track Everything</b></td>
+      <td><b>🌈 Personalize</b></td>
+      <td><b>📊 Monitor Progress</b></td>
+    </tr>
+    <tr>
+      <td>Movies, TV shows & anime</td>
+      <td>Custom watchlists & categories</td>
+      <td>Episode & season tracking</td>
+    </tr>
+  </table>
+</div>
+
+## ✨ Features
+
+<div align="center">
+  <img src="docs/assets/HomePage.png" alt="CineTracks Home Page" width="700px">
+</div>
+
+- **🔄 Unified Watchlist Management** - Track movies, TV series, and anime all in one place
+- **📋 Personalized Categories** - Organize content into "Watched", "Currently Watching", and "Plan to Watch" lists
+- **📡 Real-time Data Integration** - Fetch accurate information from trusted sources like TMDB
+- **⭐ User Ratings & Reviews** - Rate and review content you've watched
+- **📊 Progress Tracking** - Keep track of your watching progress, including episodes for series
+- **🧠 Smart Recommendations** - Get personalized content suggestions based on your preferences
+- **📱 Responsive Design** - Enjoy a seamless experience across desktop and mobile devices
+- **🔒 Secure Authentication** - Protect your account with robust user authentication
+
+## 🖼️ Screenshots
+
+<div align="center">
+  <table>
+    <tr>
+      <td><img src="docs/assets/LandingPage.png" alt="Landing Page" width="400px"></td>
+      <td><img src="docs/assets/TVShowPage.png" alt="TV Show Page" width="400px"></td>
+    </tr>
+    <tr>
+      <td align="center"><b>Welcome Page</b></td>
+      <td align="center"><b>TV Show Details</b></td>
+    </tr>
+    <tr>
+      <td><img src="docs/assets/MoviePage.png" alt="Movie Page" width="400px"></td>
+      <td><img src="docs/assets/WatchlistPage.png" alt="Watchlist Page" width="400px"></td>      
+    </tr>
+    <tr>
+      <td align="center"><b>Movie Details</b></td>
+      <td align="center"><b>Personal Watchlist</b></td>
+    </tr>
+  </table>
+</div>
 
 ## 🛠️ Technology Stack
 
-### Backend
-- **Java Spring Boot** for microservices architecture
-- **Spring Security** with JWT for authentication
-- **PostgreSQL** database for data persistence
-- **RESTful APIs** for communication between services
-- **Nginx** as a reverse proxy
-- **Docker** for containerization and deployment
-
-### Frontend
-- **Next.js** for server-side rendering and optimal performance
-- **React** for building a dynamic and responsive UI
-- **TypeScript** for type safety
-- **Tailwind CSS** for styling (inferred from project structure)
+<div align="center">
+  <table>
+    <tr>
+      <td><b>🔙 Backend</b></td>
+      <td><b>🔜 Frontend</b></td>
+      <td><b>🧰 DevOps</b></td>
+    </tr>
+    <tr>
+      <td>
+        <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white" alt="Spring Boot"><br>
+        <img src="https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=spring-security&logoColor=white" alt="Spring Security"><br>
+        <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"><br>
+        <img src="https://img.shields.io/badge/REST%20API-FF6C37?style=for-the-badge&logo=fastify&logoColor=white" alt="REST API">
+      </td>
+      <td>
+        <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js"><br>
+        <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React"><br>
+        <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"><br>
+        <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
+      </td>
+      <td>
+        <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"><br>
+        <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white" alt="Nginx"><br>
+        <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white" alt="GitHub Actions"><br>
+        <img src="https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white" alt="JWT">
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## 🏗️ Architecture
 
-CineTracks follows a microservices architecture:
+CineTracks follows a microservices architecture for scalability and maintainability:
+
+```mermaid
+graph TD
+    Client["Frontend (Next.js)"]
+    Gateway["API Gateway (Nginx)"]
+    Auth["Auth Service"]
+    Catalog["Catalog Service"]
+    Watchlist["Watchlist Service"]
+    DB1[(Auth DB)]
+    DB2[(Catalog DB)]
+    DB3[(Watchlist DB)]
+    TMDB["TMDB API"]
+    
+    Client <--> Gateway
+    Gateway <--> Auth
+    Gateway <--> Catalog
+    Gateway <--> Watchlist
+    Auth <--> DB1
+    Catalog <--> DB2
+    Catalog <--> TMDB
+    Watchlist <--> DB3
+```
 
 - **Auth Service**: Handles user registration, authentication, and authorization
-- **Catalog Service**: Manages movie, TV show, and anime data, integrates with external APIs for content information and metadata
-- **Watchlist Service**: Manages user watchlists for movies, TV shows, and anime with status tracking and episode progress
+- **Catalog Service**: Manages movie, TV show, and anime data, integrates with external APIs for content information
+- **Watchlist Service**: Manages user watchlists with status tracking and episode progress
 - **Frontend Service**: Delivers the user interface and interacts with backend services
 
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - Node.js (v14 or higher)
 - Java 11 or higher (for local development)
 - Maven (for local development)
 
-### Installation and Setup
+### Quick Start
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Snapman5678/CineTracks.git
-   cd cinetracks
-   ```
-
-2. **Set up environment variables**
-   Create a `.env` file in the root directory with the following variables:
-   ```
-   POSTGRES_USER=your_db_user
-   POSTGRES_PASSWORD=your_db_password
-   POSTGRES_DB=cinetracks
-   JWT_SECRET=your_jwt_secret
-   TMDB_API_KEY=your_tmdb_api_key
-   ```
-
-3. **Start the application with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Access the application**
-   - Frontend: http://localhost:3000
-   - API Gateway: http://localhost:8080
-
-### Local Development
-
-#### Backend
 ```bash
+# Clone the repository
+git clone https://github.com/Snapman5678/CineTracks.git
+cd cinetracks
+
+# Set up environment variables
+cp .env.example .env
+# Edit the .env file with your credentials
+
+# Start the application with Docker Compose
+docker-compose up -d
+```
+
+### Access the Application
+
+- **Frontend**: http://localhost:3000
+- **API Gateway**: http://localhost:8080
+
+## 💻 Development Setup
+
+<details>
+<summary><b>Backend Development</b></summary>
+
+```bash
+# Auth Service
 cd backend/auth-service
 ./mvnw spring-boot:run
 
-# In a new terminal
+# Catalog Service
 cd backend/catalog-service
 ./mvnw spring-boot:run
 
-# In a new terminal
+# Watchlist Service
 cd backend/watchlist-service
 ./mvnw spring-boot:run
 ```
+</details>
 
-#### Frontend
+<details>
+<summary><b>Frontend Development</b></summary>
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+</details>
 
-## 🧪 Running Tests
+<details>
+<summary><b>Running Tests</b></summary>
 
-### Backend
 ```bash
+# Backend Tests
 cd backend/auth-service
 ./mvnw test
 
@@ -110,13 +204,34 @@ cd backend/catalog-service
 
 cd backend/watchlist-service
 ./mvnw test
-```
 
-### Frontend
-```bash
+# Frontend Tests
 cd frontend
 npm test
 ```
+</details>
+
+## 📝 Environment Variables
+
+Create a `.env` file with the following variables:
+
+```
+POSTGRES_USER=your_db_user
+POSTGRES_PASSWORD=your_db_password
+POSTGRES_DB=cinetracks
+JWT_SECRET=your_jwt_secret
+TMDB_API_KEY=your_tmdb_api_key
+```
+
+## 🤝 Contributing
+
+Contributions are always welcome! Please check out our [contribution guidelines](CONTRIBUTING.md) first.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
@@ -124,5 +239,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgements
 
-- [TMDB API](https://www.themoviedb.org/documentation/api) for providing movie and TV series data
-- All contributors who have helped make this project better
+- [TMDB API](https://www.themoviedb.org/documentation/api) for providing comprehensive movie and TV show data
+- All contributors who have helped shape CineTracks
+
+---
+
+<div align="center">
+  <p>Made with ❤️ for entertainment lovers</p>
+  <p>
+    <a href="https://github.com/Snapman5678/CineTracks/issues">Report Bug</a> · 
+    <a href="https://github.com/Snapman5678/CineTracks/issues">Request Feature</a>
+  </p>
+</div>
