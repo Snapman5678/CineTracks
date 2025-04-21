@@ -512,7 +512,11 @@ export default function Home() {
       }
       
       // Sort by popularity or vote average
-      const sortedResults = allResults.sort((a, b) => b.vote_average - a.vote_average);
+      const sortedResults = allResults.sort((a, b) => {
+        const aScore = a.vote_count * a.vote_average;
+        const bScore = b.vote_count * b.vote_average;
+        return bScore - aScore;
+      });
       
       // Limit to 8 results for better UI
       setSearchResults(sortedResults.slice(0, 8));

@@ -20,6 +20,9 @@ public class TvShow {
     
     @JsonProperty("vote_average")
     private Double voteAverage;
+
+    @JsonProperty("vote_count")
+    private Integer voteCount;
     
     @JsonProperty("genre_ids")
     private List<Integer> genreIds;
@@ -95,6 +98,14 @@ public class TvShow {
     
     public Double getVoteAverage() {
         return voteAverage;
+    }
+
+    public Integer getVoteCount() {
+        return voteCount;
+    }
+
+    public void setVoteCount(Integer voteCount) {
+        this.voteCount = voteCount;
     }
     
     public void setVoteAverage(Double voteAverage) {
