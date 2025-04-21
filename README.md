@@ -58,25 +58,26 @@
 
 ## 🖼️ Screenshots
 
-<div>
-  <table>
-    <tr>
-      <td><img src="docs/assets/LandingPage.png" alt="Landing Page" width="700px"></td>
-      <td><img src="docs/assets/TVShowPage.png" alt="TV Show Page" width="700px"></td>
-    </tr>
-    <tr>
-      <td align="center"><b>Welcome Page</b></td>
-      <td align="center"><b>TV Show Details</b></td>
-    </tr>
-    <tr>
-      <td><img src="docs/assets/MoviePage.png" alt="Movie Page" width="700px"></td>
-      <td><img src="docs/assets/WatchlistPage.png" alt="Watchlist Page" width="700px"></td>      
-    </tr>
-    <tr>
-      <td align="center"><b>Movie Details</b></td>
-      <td align="center"><b>Personal Watchlist</b></td>
-    </tr>
-  </table>
+<div style="display: flex; flex-wrap: wrap; gap: 20px;">
+  <div style="flex: 1 1 45%;">
+    <img src="docs/assets/LandingPage.png" alt="Landing Page" width="100%">
+    <p style="text-align: center;"><b>Welcome Page</b></p>
+  </div>
+  <br>
+  <div style="flex: 1 1 45%;">
+    <img src="docs/assets/MoviePage.png" alt="Movie Page" width="100%">
+    <p style="text-align: center;"><b>Movie Details</b></p>
+  </div>
+  <br>
+  <div style="flex: 1 1 45%;">
+    <img src="docs/assets/TVShowPage.png" alt="TV Show Page" width="100%">
+    <p style="text-align: center;"><b>TV Show Details</b></p>
+  </div>
+  <br>
+  <div style="flex: 1 1 45%;">
+    <img src="docs/assets/WatchlistPage.png" alt="Watchlist Page" width="100%">
+    <p style="text-align: center;"><b>Personal Watchlist</b></p>
+  </div>
 </div>
 
 <br>
