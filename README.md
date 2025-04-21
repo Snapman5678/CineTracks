@@ -2,7 +2,7 @@
 
 <div align="center">
   
-  <img src="docs/assets/Banner.png" alt="CineTracks Banner" width="800px">
+  <img src="docs/assets/Banner.png" alt="CineTracks Banner" width="1400px">
   
   <!-- <p><i>Your ultimate entertainment companion for tracking movies, TV shows, and anime</i></p> -->
   
@@ -12,9 +12,13 @@
   
 </div>
 
+<br>
+
 ## 📌 Overview
 
 **CineTracks** is a comprehensive entertainment tracking platform that brings together movies, TV series, and anime in one elegant application. Say goodbye to juggling multiple apps for different content types—CineTracks provides a unified solution with data from trusted sources, personalized lists, and smart recommendations.
+
+<br>
 
 <div align="center">
   <table>
@@ -31,11 +35,15 @@
   </table>
 </div>
 
+<br>
+
 ## ✨ Features
 
-<div align="center">
-  <img src="docs/assets/HomePage.png" alt="CineTracks Home Page" width="700px">
+<div>
+  <img src="docs/assets/HomePage.png" alt="CineTracks Home Page" width="1400px">
 </div>
+
+<br>
 
 - **🔄 Unified Watchlist Management** - Track movies, TV series, and anime all in one place
 - **📋 Personalized Categories** - Organize content into "Watched", "Currently Watching", and "Plan to Watch" lists
@@ -46,21 +54,23 @@
 - **📱 Responsive Design** - Enjoy a seamless experience across desktop and mobile devices
 - **🔒 Secure Authentication** - Protect your account with robust user authentication
 
+<br>
+
 ## 🖼️ Screenshots
 
-<div align="center">
+<div>
   <table>
     <tr>
-      <td><img src="docs/assets/LandingPage.png" alt="Landing Page" width="400px"></td>
-      <td><img src="docs/assets/TVShowPage.png" alt="TV Show Page" width="400px"></td>
+      <td><img src="docs/assets/LandingPage.png" alt="Landing Page" width="700px"></td>
+      <td><img src="docs/assets/TVShowPage.png" alt="TV Show Page" width="700px"></td>
     </tr>
     <tr>
       <td align="center"><b>Welcome Page</b></td>
       <td align="center"><b>TV Show Details</b></td>
     </tr>
     <tr>
-      <td><img src="docs/assets/MoviePage.png" alt="Movie Page" width="400px"></td>
-      <td><img src="docs/assets/WatchlistPage.png" alt="Watchlist Page" width="400px"></td>      
+      <td><img src="docs/assets/MoviePage.png" alt="Movie Page" width="700px"></td>
+      <td><img src="docs/assets/WatchlistPage.png" alt="Watchlist Page" width="700px"></td>      
     </tr>
     <tr>
       <td align="center"><b>Movie Details</b></td>
@@ -69,9 +79,11 @@
   </table>
 </div>
 
+<br>
+
 ## 🛠️ Technology Stack
 
-<div align="center">
+<div align='center'>
   <table>
     <tr>
       <td><b>🔙 Backend</b></td>
@@ -101,6 +113,8 @@
   </table>
 </div>
 
+<br>
+
 ## 🏗️ Architecture
 
 CineTracks follows a microservices architecture for scalability and maintainability:
@@ -127,10 +141,14 @@ graph TD
     Watchlist <--> DB3
 ```
 
+<br>
+
 - **Auth Service**: Handles user registration, authentication, and authorization
 - **Catalog Service**: Manages movie, TV show, and anime data, integrates with external APIs for content information
 - **Watchlist Service**: Manages user watchlists with status tracking and episode progress
 - **Frontend Service**: Delivers the user interface and interacts with backend services
+
+<br>
 
 ## 🚀 Getting Started
 
@@ -140,6 +158,8 @@ graph TD
 - Node.js (v14 or higher)
 - Java 11 or higher (for local development)
 - Maven (for local development)
+
+<br>
 
 ### Quick Start
 
@@ -156,15 +176,21 @@ cp .env.example .env
 docker-compose up -d
 ```
 
+<br>
+
 ### Access the Application
 
 - **Frontend**: http://localhost:3000
 - **API Gateway**: http://localhost:8080
 
+<br>
+
 ## 💻 Development Setup
 
 <details>
 <summary><b>Backend Development</b></summary>
+
+<br>
 
 ```bash
 # Auth Service
@@ -184,6 +210,8 @@ cd backend/watchlist-service
 <details>
 <summary><b>Frontend Development</b></summary>
 
+<br>
+
 ```bash
 cd frontend
 npm install
@@ -193,6 +221,8 @@ npm run dev
 
 <details>
 <summary><b>Running Tests</b></summary>
+
+<br>
 
 ```bash
 # Backend Tests
@@ -211,6 +241,8 @@ npm test
 ```
 </details>
 
+<br>
+
 ## 📝 Environment Variables
 
 Create a `.env` file with the following variables:
@@ -223,6 +255,8 @@ JWT_SECRET=your_jwt_secret
 TMDB_API_KEY=your_tmdb_api_key
 ```
 
+<br>
+
 ## 🤝 Contributing
 
 Contributions are always welcome! Please check out our [contribution guidelines](CONTRIBUTING.md) first.
@@ -233,14 +267,20 @@ Contributions are always welcome! Please check out our [contribution guidelines]
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+<br>
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+<br>
 
 ## 🙏 Acknowledgements
 
 - [TMDB API](https://www.themoviedb.org/documentation/api) for providing comprehensive movie and TV show data
 - All contributors who have helped shape CineTracks
+
+<br>
 
 ---
 
