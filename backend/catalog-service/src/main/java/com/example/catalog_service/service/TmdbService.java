@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Service
 public class TmdbService {
@@ -315,7 +316,16 @@ public class TmdbService {
         try {
             TvShowResponse response = restTemplate.getForObject(url, TvShowResponse.class);
             if (response != null && response.getResults() != null) {
-                List<TvShow> tvShows = response.getResults();
+                List<TvShow> tvShows = response.getResults().stream()
+                    .filter(tvShow -> {
+                        List<Integer> genres = tvShow.getGenreIds();
+                        List<String> origin = tvShow.getOriginCountry();
+                        // Filter out only if it's both animated AND from Japan
+                        boolean isAnime = (genres != null && genres.contains(16)) &&
+                                        (origin != null && origin.contains("JP"));
+                        return !isAnime;
+                    })
+                    .collect(Collectors.toList());
                 for (TvShow tvShow : tvShows) {
                     fetchAndSetTvTrailerUrl(tvShow);
                 }
@@ -507,8 +517,6 @@ public class TmdbService {
             .fromUriString(tmdbProperties.getBaseUrl() + "/search/tv")
             .queryParam("api_key", tmdbProperties.getApiKey())
             .queryParam("query", query)
-            .queryParam("with_original_language", "ja")  // Japanese language content
-            .queryParam("with_genres", "16")  // Animation genre
             .queryParam("page", page)
             .build()
             .toUriString();
@@ -516,7 +524,20 @@ public class TmdbService {
         try {
             TvShowResponse response = restTemplate.getForObject(url, TvShowResponse.class);
             if (response != null && response.getResults() != null) {
-                List<TvShow> animeShows = response.getResults();
+
+                List<TvShow> animeShows = response.getResults().stream()
+                .filter(tvShow -> {
+                    List<Integer> genres = tvShow.getGenreIds();
+                    List<String> origin = tvShow.getOriginCountry();
+                    String lang = tvShow.getOriginalLanguage();
+
+                    boolean isAnimated = genres != null && genres.contains(16);
+                    boolean isJapaneseOrigin = (origin != null && origin.contains("JP")) || "ja".equalsIgnoreCase(lang);
+
+                    return isAnimated && isJapaneseOrigin;
+                })
+                .collect(Collectors.toList());
+
                 for (TvShow anime : animeShows) {
                     fetchAndSetTvTrailerUrl(anime);
                 }

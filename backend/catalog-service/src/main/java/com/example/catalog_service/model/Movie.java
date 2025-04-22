@@ -20,6 +20,9 @@ public class Movie {
     
     @JsonProperty("vote_average")
     private Double voteAverage;
+
+    @JsonProperty("vote_count")
+    private Integer voteCount;
     
     @JsonProperty("genre_ids")
     private List<Integer> genreIds;
@@ -88,7 +91,15 @@ public class Movie {
     public void setVoteAverage(Double voteAverage) {
         this.voteAverage = voteAverage;
     }
-    
+
+    public Integer getVoteCount() {
+        return voteCount;
+    }
+
+    public void setVoteCount(Integer voteCount) {
+        this.voteCount = voteCount;
+    }
+
     public List<Integer> getGenreIds() {
         return genreIds;
     }
