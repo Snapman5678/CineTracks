@@ -13,9 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.auth.config.JwtUtil;
 import com.example.auth.dto.UpdateProfileRequest;
+import com.example.auth.factory.UserFactory;
 import com.example.auth.model.Role;
 import com.example.auth.model.User;
+import com.example.auth.observer.AuthEvent;
+import com.example.auth.observer.AuthEventPublisher;
 import com.example.auth.repository.UserRepository;
+import com.example.auth.strategy.AuthenticationStrategy;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -28,6 +34,15 @@ public class UserService {
 
     @Autowired
     private JwtUtil jwtUtil;
+    
+    @Autowired
+    private UserFactory userFactory;
+    
+    @Autowired
+    private AuthEventPublisher eventPublisher;
+    
+    @Autowired
+    private List<AuthenticationStrategy> authStrategies;
     
     @Value("${app.password-reset.expiry:3600000}")
     private long passwordResetTokenExpiry;
@@ -44,13 +59,18 @@ public class UserService {
                 throw new IllegalArgumentException("Email already registered");
             }
             
-            // Set default role if none provided
-            if (user.getRole() == null) {
-                user.setRole(Role.USER);
-            }
+            // Using Factory Method Pattern to create the user with appropriate defaults
+            User newUser = userFactory.createRegularUser(
+                user.getUsername(),
+                user.getEmail(),
+                user.getPassword()
+            );
             
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-            User savedUser = userRepository.save(user);
+            User savedUser = userRepository.save(newUser);
+            
+            // Using Observer Pattern to notify about user registration
+            eventPublisher.publishEvent(new AuthEvent(AuthEvent.EventType.USER_REGISTERED, savedUser));
+            
             return jwtUtil.generateToken(savedUser.getUsername());
         } catch (DataIntegrityViolationException e) {
             throw new RuntimeException("Database exception: " + e.getMessage());
@@ -61,14 +81,14 @@ public class UserService {
     
     public String registerGuestUser() {
         try {
-            // Create a temporary guest user
-            User guestUser = new User();
-            String guestUsername = "guest_" + UUID.randomUUID().toString().substring(0, 8);
-            guestUser.setUsername(guestUsername);
-            guestUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
-            guestUser.setRole(Role.GUEST);
+            // Using Factory Method Pattern to create a guest user
+            User guestUser = userFactory.createGuestUser();
             
             User savedUser = userRepository.save(guestUser);
+            
+            // Using Observer Pattern to notify about guest user registration
+            eventPublisher.publishEvent(new AuthEvent(AuthEvent.EventType.USER_REGISTERED, savedUser, "Guest account"));
+            
             return jwtUtil.generateToken(savedUser.getUsername());
         } catch (Exception e) {
             throw new RuntimeException("Guest registration failed: " + e.getMessage());
@@ -84,14 +104,27 @@ public class UserService {
     }
 
     public String loginUser(String username, String rawPassword) {
-        Optional<User> userOptional = findByUsername(username);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            if (passwordEncoder.matches(rawPassword, user.getPassword())) {
-                return jwtUtil.generateToken(user.getUsername());
+        // Using Strategy pattern to select the appropriate authentication method
+        User user = null;
+        for (AuthenticationStrategy strategy : authStrategies) {
+            if (strategy.supports("username_password")) {
+                try {
+                    user = strategy.authenticate(username, rawPassword);
+                    break;
+                } catch (RuntimeException e) {
+                    // Try the next strategy
+                }
             }
         }
-        throw new RuntimeException("Invalid username or password");
+        
+        if (user == null) {
+            throw new RuntimeException("Invalid username or password");
+        }
+        
+        // Using Observer Pattern to notify about login event
+        eventPublisher.publishEvent(new AuthEvent(AuthEvent.EventType.USER_LOGIN, user));
+        
+        return jwtUtil.generateToken(user.getUsername());
     }
 
     @Transactional  
@@ -125,9 +158,12 @@ public class UserService {
                 existingUser.setEmail(userUpdate.getEmail());
             }
             
-            userRepository.save(existingUser);
+            User updatedUser = userRepository.save(existingUser);
             
-            return jwtUtil.generateToken(existingUser.getUsername());
+            // Using Observer Pattern to notify about account update
+            eventPublisher.publishEvent(new AuthEvent(AuthEvent.EventType.ACCOUNT_UPDATED, updatedUser));
+            
+            return jwtUtil.generateToken(updatedUser.getUsername());
             
         } catch (DataIntegrityViolationException e) {
             throw new RuntimeException("Username already exists: " + e.getMessage());
@@ -159,7 +195,10 @@ public class UserService {
             existingUser.setEmail(profileUpdate.getEmail());
         }
         
-        userRepository.save(existingUser);
+        User updatedUser = userRepository.save(existingUser);
+        
+        // Using Observer Pattern to notify about profile update
+        eventPublisher.publishEvent(new AuthEvent(AuthEvent.EventType.ACCOUNT_UPDATED, updatedUser));
     }
 
     @Transactional
@@ -167,6 +206,10 @@ public class UserService {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         userRepository.delete(user);
+        
+        // Using Observer Pattern to notify about account deletion
+        eventPublisher.publishEvent(new AuthEvent(AuthEvent.EventType.ACCOUNT_DELETED, user));
+        
         return true;
     }
     
@@ -180,7 +223,14 @@ public class UserService {
         user.setResetToken(resetToken);
         user.setResetTokenExpiry(Instant.now().toEpochMilli() + passwordResetTokenExpiry); // 1 hour expiry
         
-        userRepository.save(user);
+        User updatedUser = userRepository.save(user);
+        
+        // Using Observer Pattern to notify about password reset request
+        eventPublisher.publishEvent(new AuthEvent(
+            AuthEvent.EventType.PASSWORD_RESET_REQUESTED, 
+            updatedUser, 
+            "Reset token: " + resetToken
+        ));
         
         // In a real application, you would send an email here with the resetToken
         // For this demo, we'll just save it to the database
@@ -201,7 +251,13 @@ public class UserService {
         user.setResetToken(null);
         user.setResetTokenExpiry(null);
         
-        userRepository.save(user);
+        User updatedUser = userRepository.save(user);
+        
+        // Using Observer Pattern to notify about password reset completion
+        eventPublisher.publishEvent(new AuthEvent(
+            AuthEvent.EventType.PASSWORD_RESET_COMPLETED, 
+            updatedUser
+        ));
     }
     
     @Transactional
@@ -216,7 +272,13 @@ public class UserService {
         
         // Update password
         user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
+        User updatedUser = userRepository.save(user);
+        
+        // Using Observer Pattern to notify about password change
+        eventPublisher.publishEvent(new AuthEvent(
+            AuthEvent.EventType.PASSWORD_CHANGED, 
+            updatedUser
+        ));
     }
     
     @Transactional
@@ -247,10 +309,17 @@ public class UserService {
         guestUser.setPassword(passwordEncoder.encode(password));
         guestUser.setRole(Role.USER);
         
-        userRepository.save(guestUser);
+        User upgradedUser = userRepository.save(guestUser);
+        
+        // Using Observer Pattern to notify about account upgrade
+        eventPublisher.publishEvent(new AuthEvent(
+            AuthEvent.EventType.ACCOUNT_UPDATED, 
+            upgradedUser,
+            "Upgraded from guest account"
+        ));
         
         // Return new token with updated username
-        return jwtUtil.generateToken(guestUser.getUsername());
+        return jwtUtil.generateToken(upgradedUser.getUsername());
     }
     
     @Transactional
